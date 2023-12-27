@@ -3,7 +3,8 @@
 	"start": "🔗 Please send a @username (@ symbol is necessary)",
 	"processing": "⏳ Searching the stories, please wait...",
 	"pleaseWait": "⚡️ Your request is being processed\n⌛️ Please be patient",
-	"invalidLink": "🚫 Please send a valid username.",
+	"queued": "⚡️ You have been added to the queue\n⌛️ Please wait",
+  "invalidUsername": "🚫 Please send a valid username.",
 
 	"//general": "",
 	"smthWentWrong": "❌ Oops, something went wrong. Please try again.",
