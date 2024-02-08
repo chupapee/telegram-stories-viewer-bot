@@ -40,7 +40,7 @@ export async function linkStatus(link: string) {
 }
 
 export async function downloadLink(link: string) {
-  console.log('downloading started');
+  console.log('downloading link data');
 
   try {
     const { downloadable, size } = await linkStatus(link);
@@ -49,12 +49,11 @@ export async function downloadLink(link: string) {
     if (downloadable && size !== null && size < 50) {
       const response = await axios.get(link, { responseType: 'arraybuffer' });
       const buffer = Buffer.from(response.data, 'binary');
-      console.log(response);
       return buffer;
     }
     return link;
   } catch (error) {
-    console.error('Error while downloading:', error);
+    console.error('Error while downloading link data:', error);
     return link;
   }
 }

@@ -1,11 +1,10 @@
 import { session, Telegraf } from 'telegraf';
 
-import { initUserbot, queueEmitter, UserMessage } from '@entities/userbot';
+import { initUserbot, messageInfoChanged } from '@entities/userbot';
+import { processStories } from '@entities/userbot/model';
 import { BOT_TOKEN, i18n, IContextBot } from '@shared/config';
-import { Queue } from '@shared/lib';
 
 export const bot = new Telegraf<IContextBot>(BOT_TOKEN);
-export const usersQueue = Queue.getInstance<UserMessage>();
 
 bot.use(session());
 bot.use(i18n.middleware());
@@ -36,14 +35,15 @@ bot.start(async (ctx) => {
 bot.on('message', async (ctx) => {
   const handleMessage = async () => {
     if ('text' in ctx.message) {
-      const text = ctx.message.text;
-      if (text.includes('@')) {
-        usersQueue.push({
+      const targetUsername = ctx.message.text;
+      if (targetUsername.includes('@')) {
+        messageInfoChanged({
           chatId: String(ctx.chat.id),
-          targetUsername: text,
+          targetUsername,
           locale: ctx.i18n.locale(),
         });
-        queueEmitter.emit('pushed', ctx);
+        await ctx.reply(ctx.i18n.t('processing'));
+        processStories(targetUsername);
       } else await ctx.reply(ctx.i18n.t('invalidUsername'));
     }
   };

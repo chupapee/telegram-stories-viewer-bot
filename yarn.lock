@@ -2441,6 +2441,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"effector@npm:^23.2.0":
+  version: 23.2.0
+  resolution: "effector@npm:23.2.0"
+  checksum: 60109902109b23f0b2b79236753846aafa31fa59c53b35573bac67fca81ce926c8eb51f5ac6a0dd4ea846744d29725df2f3cedf1e2f0764076a6eb6f8d6ac51a
+  languageName: node
+  linkType: hard
+
 "electron-to-chromium@npm:^1.4.411":
   version: 1.4.419
   resolution: "electron-to-chromium@npm:1.4.419"
@@ -6191,6 +6198,7 @@ __metadata:
     "@types/node": "npm:^20.1.7"
     axios: "npm:^1.4.0"
     dotenv: "npm:^16.0.3"
+    effector: "npm:^23.2.0"
     eslint: "npm:^8.42.0"
     eslint-kit: "npm:^9.1.0"
     firebase: "npm:^9.22.0"
