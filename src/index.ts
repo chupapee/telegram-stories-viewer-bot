@@ -1,7 +1,7 @@
+import { newTaskReceived } from 'model';
 import { session, Telegraf } from 'telegraf';
 
-import { initUserbot, messageInfoChanged } from '@entities/userbot';
-import { processStories } from '@entities/userbot/model';
+import { initUserbot } from '@entities/userbot';
 import { BOT_TOKEN, i18n, IContextBot } from '@shared/config';
 
 export const bot = new Telegraf<IContextBot>(BOT_TOKEN);
@@ -36,14 +36,14 @@ bot.on('message', async (ctx) => {
   const handleMessage = async () => {
     if ('text' in ctx.message) {
       const targetUsername = ctx.message.text;
-      if (targetUsername.includes('@')) {
-        messageInfoChanged({
+      if (targetUsername.startsWith('@')) {
+        newTaskReceived({
           chatId: String(ctx.chat.id),
           targetUsername,
           locale: ctx.i18n.locale(),
+          links: [],
         });
         await ctx.reply(ctx.i18n.t('processing'));
-        processStories(targetUsername);
       } else await ctx.reply(ctx.i18n.t('invalidUsername'));
     }
   };

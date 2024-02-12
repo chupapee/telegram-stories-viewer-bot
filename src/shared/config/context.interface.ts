@@ -1,5 +1,5 @@
 import { Context, Scenes } from 'telegraf';
-import { User } from 'typegram';
+import { User } from 'telegraf/typings/core/types/typegram';
 
 export interface UserSession extends User {
   messagesToRemove: number[];

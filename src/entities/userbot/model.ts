@@ -2,7 +2,8 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-ignore
 import input from 'input';
-import { Api, TelegramClient } from 'telegram';
+import { userbotMessagesListener } from 'model';
+import { TelegramClient } from 'telegram';
 import { Entity } from 'telegram/define';
 import { NewMessage } from 'telegram/events';
 import { StoreSession } from 'telegram/sessions';
@@ -16,8 +17,6 @@ import {
 
 export class Userbot {
   private static client: TelegramClient;
-
-  constructor() {}
 
   public static async getInstance() {
     if (!Userbot.client) {
@@ -42,9 +41,8 @@ export class Userbot {
   }
 }
 
-class StoriesBot {
+export class StoriesBot {
   private static entity: Entity;
-  constructor() {}
 
   public static async getEntity() {
     if (!StoriesBot.entity) {
@@ -54,19 +52,6 @@ class StoriesBot {
     return StoriesBot.entity;
   }
 }
-
-export const processStories = async (username: string) => {
-  console.warn('processing started');
-
-  const client = await Userbot.getInstance();
-  const entity = await StoriesBot.getEntity();
-  client.invoke(
-    new Api.messages.SendMessage({
-      peer: entity,
-      message: `/dlStories ${username}`,
-    })
-  );
-};
 
 async function initClient() {
   const storeSession = new StoreSession('folder_name');
@@ -92,4 +77,12 @@ async function initClient() {
   console.log(client.session.save()); // Save the session to avoid logging in again
   await client.sendMessage('me', { message: 'Hi!' });
   return client;
+}
+
+export async function initUserbot() {
+  await Userbot.getInstance(); // init
+
+  console.log('userbot initiated');
+
+  Userbot.addEventListener('messages', userbotMessagesListener);
 }

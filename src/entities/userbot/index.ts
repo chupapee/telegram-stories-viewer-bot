@@ -1,2 +1,2 @@
-export * from './init';
 export * from './lib';
+export { initUserbot } from './model';
