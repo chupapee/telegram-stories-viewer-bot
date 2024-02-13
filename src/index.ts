@@ -43,7 +43,6 @@ bot.on('message', async (ctx) => {
           locale: ctx.i18n.locale(),
           links: [],
         });
-        await ctx.reply(ctx.i18n.t('processing'));
       } else await ctx.reply(ctx.i18n.t('invalidUsername'));
     }
   };
