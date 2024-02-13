@@ -9,7 +9,7 @@
 		"build": "tsc && tsc-alias",
 		"lint": "eslint src",
 		"lint:fix": "eslint src --fix",
-		"process:start": "node dist/index.js"
+		"process:start": "yarn build && npx pm2 start ecosystem.config.js"
 	},
 	"dependencies": {
 		"@supabase/supabase-js": "^2.39.3",
