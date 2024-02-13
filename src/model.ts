@@ -1,16 +1,20 @@
 import { createEffect, createEvent, createStore, sample } from 'effector';
 import { bot } from 'index';
 import { and, not } from 'patronum';
+import { User } from 'telegraf/typings/core/types/typegram';
 import { Api } from 'telegram';
 
+import { saveUser } from '@entities/storage-model';
 import { downloadLink } from '@entities/userbot';
 import { StoriesBot, Userbot } from '@entities/userbot/model';
+import { BOT_ADMIN_ID } from '@shared/config';
 
 export interface MessageInfo {
   chatId: string;
   targetUsername: string;
   locale: string;
   links: string[];
+  user?: User;
 }
 
 export const $currentTask = createStore<MessageInfo | null>(null);
@@ -62,6 +66,8 @@ const fetchLinksFromStoriesBot = createEffect(async (task: MessageInfo) => {
       '⏳ Searching the stories, please wait...'
     );
 
+    notifyAdmin({ task, status: 'start' });
+
     const { targetUsername } = task;
 
     const client = await Userbot.getInstance();
@@ -98,6 +104,11 @@ const sendStoriesToUserFx = createEffect(async () => {
       '📤 Uploading stories started, but you can use the links above to download them by yourself!'
     );
 
+    notifyAdmin({
+      task: $currentTask.getState() ?? ({} as MessageInfo),
+      status: 'end',
+    });
+
     const mediaGroup = await downloadLinks(links);
     if (mediaGroup.length > 0) {
       await bot.telegram.sendMediaGroup(chatId, mediaGroup);
@@ -130,6 +141,8 @@ const sendWaitMessageFx = createEffect(async (task: MessageInfo) => {
   );
 });
 
+const saveUserFx = createEffect(saveUser);
+
 $tasksQueue.on(newTaskReceived, (tasks, newTask) => {
   const alreadyExist = tasks.some((x) => x.chatId === newTask.chatId);
   if (!alreadyExist) return [...tasks, newTask];
@@ -148,6 +161,12 @@ $currentTask.on(taskLinksReceived, (task, links) => {
 sample({
   clock: [newTaskReceived, taskDone],
   target: checkTasks,
+});
+
+sample({
+  clock: newTaskReceived,
+  fn: (task) => task.user!,
+  target: saveUserFx,
 });
 
 sample({
@@ -226,4 +245,25 @@ async function downloadLinks(links: string[]) {
   }
 
   return mediaGroup;
+}
+
+async function notifyAdmin({
+  task,
+  status,
+}: {
+  task: MessageInfo;
+  status: 'start' | 'end';
+}) {
+  if (status === 'end') {
+    bot.telegram.sendMessage(BOT_ADMIN_ID, '✅ task done successfully!');
+    return;
+  }
+
+  if (task.user) {
+    const userInfo = JSON.stringify(task.user, null, 2);
+
+    bot.telegram.sendMessage(BOT_ADMIN_ID, `👤 Task started by: ${userInfo}`, {
+      parse_mode: 'HTML',
+    });
+  }
 }

@@ -12,11 +12,11 @@
 		"process:start": "node dist/index.js"
 	},
 	"dependencies": {
+		"@supabase/supabase-js": "^2.39.3",
 		"@types/node": "^20.1.7",
 		"axios": "^1.4.0",
 		"dotenv": "^16.0.3",
 		"effector": "^23.2.0",
-		"firebase": "^9.22.0",
 		"input": "^1.0.1",
 		"nodemon": "^2.0.22",
 		"patronum": "^2.2.0",

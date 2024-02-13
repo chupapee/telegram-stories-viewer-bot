@@ -2,8 +2,16 @@ import { newTaskReceived } from 'model';
 import { session, Telegraf } from 'telegraf';
 
 import { initUserbot } from '@entities/userbot';
-import { BOT_TOKEN, i18n, IContextBot } from '@shared/config';
+import {
+  BOT_TOKEN,
+  i18n,
+  IContextBot,
+  SUPABASE_API_KEY,
+  SUPABASE_PROJECT_URL,
+} from '@shared/config';
+import { createClient } from '@supabase/supabase-js';
 
+export const supabase = createClient(SUPABASE_PROJECT_URL, SUPABASE_API_KEY);
 export const bot = new Telegraf<IContextBot>(BOT_TOKEN);
 
 bot.use(session());
@@ -42,6 +50,7 @@ bot.on('message', async (ctx) => {
           targetUsername,
           locale: ctx.i18n.locale(),
           links: [],
+          user: ctx.from,
         });
       } else await ctx.reply(ctx.i18n.t('invalidUsername'));
     }

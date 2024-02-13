@@ -29,3 +29,7 @@ export const USERBOT_API_ID = Number(getEnvVar('USERBOT_API_ID'));
 export const USERBOT_API_HASH = getEnvVar('USERBOT_API_HASH');
 export const STORIES_BOT_USERNAME = getEnvVar('STORIES_BOT_USERNAME');
 export const USERBOT_PHONE_NUMBER = getEnvVar('USERBOT_PHONE_NUMBER');
+
+// supabase
+export const SUPABASE_PROJECT_URL = getEnvVar('SUPABASE_PROJECT_URL');
+export const SUPABASE_API_KEY = getEnvVar('SUPABASE_API_KEY');
