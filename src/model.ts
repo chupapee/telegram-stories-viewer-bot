@@ -99,24 +99,30 @@ const sendStoriesToUserFx = createEffect(async () => {
         inline_keyboard: keyboard,
       },
     });
-    await bot.telegram.sendMessage(
-      chatId,
-      '📤 Uploading stories started, but you can use the links above to download them by yourself!'
-    );
+    // await bot.telegram.sendMessage(
+    //   chatId,
+    //   '📤 Uploading stories started, but you can use the links above to download them by yourself!'
+    // );
 
     notifyAdmin({
       task: $currentTask.getState() ?? ({} as MessageInfo),
       status: 'end',
     });
 
-    const mediaGroup = await downloadLinks(links);
-    if (mediaGroup.length > 0) {
-      await bot.telegram.sendMediaGroup(chatId, mediaGroup);
-      return;
-    }
-    return bot.telegram.sendMessage(chatId, '🚫 Stories cannot be downloaded!');
+    // const mediaGroup = await downloadLinks(links);
+    // if (mediaGroup.length > 0) {
+    //   await bot.telegram.sendMediaGroup(chatId, mediaGroup);
+    //   return;
+    // }
+    // return bot.telegram.sendMessage(chatId, '🚫 Stories cannot be downloaded!');
+  } else {
+    await bot.telegram.sendMessage(chatId, '🚫 Stories not found!');
   }
-  await bot.telegram.sendMessage(chatId, '🚫 Stories not found!');
+
+  notifyAdmin({
+    task: $currentTask.getState() ?? ({} as MessageInfo),
+    status: 'end',
+  });
 
   taskDone();
 });
