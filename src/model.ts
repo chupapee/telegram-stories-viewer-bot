@@ -93,44 +93,63 @@ const fetchLinksFromStoriesBot = createEffect(async (task: MessageInfo) => {
 });
 
 const sendStoriesToUserFx = createEffect(async () => {
-  console.log('sending stories to user');
+  try {
+    console.log('sending stories to user');
 
-  const { links = [], chatId = 0 } = $currentTask.getState() ?? {};
+    const { links = [], chatId = 0 } = $currentTask.getState() ?? {};
 
-  if (links.length > 0) {
-    const keyboard = linksKeyboard(links);
+    if (links.length > 0) {
+      const keyboard = linksKeyboard(links);
 
-    await bot.telegram.sendMessage(chatId, 'Links:', {
-      reply_markup: {
-        inline_keyboard: keyboard,
-      },
-    });
-    // await bot.telegram.sendMessage(
-    //   chatId,
-    //   '📤 Uploading stories started, but you can use the links above to download them by yourself!'
-    // );
+      const maxRowsMessage = 5; // 5 rows of 3 links = 15 links per message
+      if (keyboard.length >= maxRowsMessage) {
+        const keyboardList = chunkKeyboard(keyboard, maxRowsMessage);
+        console.log(keyboard);
+
+        for (const keyboard of keyboardList) {
+          await bot.telegram.sendMessage(chatId, 'Links:', {
+            reply_markup: {
+              inline_keyboard: keyboard,
+            },
+          });
+        }
+      }
+
+      await bot.telegram.sendMessage(chatId, 'Links:', {
+        reply_markup: {
+          inline_keyboard: keyboard,
+        },
+      });
+
+      notifyAdmin({
+        task: $currentTask.getState() ?? ({} as MessageInfo),
+        status: 'end',
+      });
+
+      // await bot.telegram.sendMessage(
+      //   chatId,
+      //   '📤 Uploading stories started, but you can use the links above to download them by yourself!'
+      // );
+
+      // const mediaGroup = await downloadLinks(links);
+      // if (mediaGroup.length > 0) {
+      //   await bot.telegram.sendMediaGroup(chatId, mediaGroup);
+      //   return;
+      // }
+      // return bot.telegram.sendMessage(chatId, '🚫 Stories cannot be downloaded!');
+    } else {
+      await bot.telegram.sendMessage(chatId, '🚫 Stories not found!');
+    }
 
     notifyAdmin({
       task: $currentTask.getState() ?? ({} as MessageInfo),
       status: 'end',
     });
-
-    // const mediaGroup = await downloadLinks(links);
-    // if (mediaGroup.length > 0) {
-    //   await bot.telegram.sendMediaGroup(chatId, mediaGroup);
-    //   return;
-    // }
-    // return bot.telegram.sendMessage(chatId, '🚫 Stories cannot be downloaded!');
-  } else {
-    await bot.telegram.sendMessage(chatId, '🚫 Stories not found!');
+  } catch (error) {
+  } finally {
+    console.log('task done!');
+    taskDone();
   }
-
-  notifyAdmin({
-    task: $currentTask.getState() ?? ({} as MessageInfo),
-    status: 'end',
-  });
-
-  taskDone();
 });
 
 const sendWaitMessageFx = createEffect(async (task: MessageInfo) => {
@@ -235,6 +254,21 @@ function linksKeyboard(links: string[]) {
 
   return result;
 }
+
+const chunkKeyboard = (
+  keyboard: ReturnType<typeof linksKeyboard>,
+  chunkSize: number
+) => {
+  const dividedArr: Array<typeof keyboard> = [];
+  keyboard.forEach((x, i) => {
+    if (i % chunkSize === 0) {
+      dividedArr.push([x]);
+    } else {
+      dividedArr[dividedArr.length - 1].push(x);
+    }
+  });
+  return dividedArr;
+};
 
 async function downloadLinks(links: string[]) {
   const mediaGroup: {
