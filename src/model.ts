@@ -35,20 +35,26 @@ const taskAllLinksFetched = createEvent();
 
 export const userbotMessagesListener = (event: any) => {
   try {
-    const entities: { url?: string }[] | null = event?.message?.entities;
-
-    if (event?.message?.message.includes('Total stories')) {
-      setTimeout(taskAllLinksFetched, 5_000);
+    if (
+      $isTaskRunning.getState() &&
+      event?.message?.message.includes('Total stories')
+    ) {
+      setTimeout(taskAllLinksFetched, 8_000);
+      return;
     }
 
-    if (entities && entities.length > 0) {
-      const links: string[] = [];
+    if ($isTaskRunning.getState()) {
+      const entities: { url?: string }[] | null = event?.message?.entities;
 
-      for (const link of entities) {
-        if (link.url) links.push(link.url);
+      if (entities && entities.length > 0) {
+        const links: string[] = [];
+
+        for (const link of entities) {
+          if (link.url) links.push(link.url);
+        }
+
+        if (links.length > 0) taskLinksReceived(links);
       }
-
-      if (links.length > 0) taskLinksReceived(links);
     }
   } catch (error) {
     console.error(error);
