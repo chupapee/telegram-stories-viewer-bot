@@ -49,7 +49,6 @@ bot.on('message', async (ctx) => {
           chatId: String(ctx.chat.id),
           targetUsername,
           locale: ctx.i18n.locale(),
-          links: [],
           user: ctx.from,
         });
       } else await ctx.reply(ctx.i18n.t('invalidUsername'));

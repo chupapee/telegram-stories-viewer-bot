@@ -2,10 +2,9 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-ignore
 import input from 'input';
-import { userbotMessagesListener } from 'model';
+// import { userbotMessagesListener } from 'model';
 import { TelegramClient } from 'telegram';
 import { Entity } from 'telegram/define';
-import { NewMessage } from 'telegram/events';
 import { StoreSession } from 'telegram/sessions';
 
 import {
@@ -25,20 +24,6 @@ export class Userbot {
     }
     return Userbot.client;
   }
-
-  private static eventList: string[] = [];
-
-  public static addEventListener(
-    eventName: string,
-    callback: (event: any) => void
-  ) {
-    if (this.eventList.includes(eventName)) return;
-    Userbot.client.addEventHandler(
-      callback,
-      // subscribe to stories bot only
-      new NewMessage({ chats: [STORIES_BOT_USERNAME] })
-    );
-  }
 }
 
 export class StoriesBot {
@@ -56,7 +41,6 @@ export class StoriesBot {
 async function initClient() {
   const storeSession = new StoreSession('folder_name');
 
-  console.log('Loading interactive example...');
   const client = new TelegramClient(
     storeSession,
     USERBOT_API_ID,
@@ -83,6 +67,4 @@ export async function initUserbot() {
   await Userbot.getInstance(); // init
 
   console.log('userbot initiated');
-
-  Userbot.addEventListener('messages', userbotMessagesListener);
 }
