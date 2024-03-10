@@ -1,24 +1,25 @@
-<h1><a href="https://t.me/tg_stories_downloader_bot">📥 Telegram Stories Downloader Bot</a></h1>
+<h1><a href="https://t.me/tg_stories_downloader_bot">🕵🏼‍♂️ Telegram Stories Viewer Bot</a></h1>
 
-<p>The bot allows users to view Telegram stories anonymously by leveraging a bot and userbot</p>
+<p>The bot allows to view Telegram stories <code>anonymously</code> by leveraging a bot and userbot</p>
 
-<h2>⚙️ How it works?</h2>
+<h2>📸 Screenshots</h2>
 
-1️⃣ User Interaction: User sends the Telegram username (@username) to the bot
-
-2️⃣ Bot Processing: The bot forwards the username to a userbot
-
-3️⃣ Userbot Involvement: The userbot communicates with a service responsible for uploading stories anonymously
-
-4️⃣ Story Retrieval: After the stories are uploaded, the userbot sends all uploaded stories back to the bot
-
-5️⃣ User Delivery: Finally, the bot delivers the stories to the user for viewing
+<table>
+	<tr>
+		<td><img src="https://github.com/chupapee/readme-storage/blob/main/images/bots/tgdl-happy-path.png" alt="downloading happy path"></td>
+                <td><img src="https://github.com/chupapee/readme-storage/blob/main/images/bots/tgdl-progress-info.png" alt="downloading progress info"></td>
+	</tr>
+        <tr>
+		<td><img src="https://github.com/chupapee/readme-storage/blob/main/images/bots/tgdl-error-use-cases.png" alt="wrong command use cases"></td>
+                <td><img src="https://github.com/chupapee/readme-storage/blob/main/images/bots/tgdl-preview.png" alt="bot preview info"></td>
+	</tr>
+</table>
 
 <h2>🧰 Tools Used</h2>
 
-🤖 <a href="https://gram.js.org/">GramJS</a> 🤖 - This library serves as the backbone of the userbot component
+🤖 <a href="https://gram.js.org/">GramJS</a> 🤖 - Provides access to the Telegram client API based on MTProto
 
-👾 <a href="https://telegraf.js.org/">Telegraf</a> 👾 - utilized for the bot, facilitating the creation Telegram bots
+👾 <a href="https://telegraf.js.org/">Telegraf</a> 👾 - Provides access to the Telegram bot API
 
 ☄️ <a href="https://effector.dev/">Effector</a> ☄️ - used for writing the business logic of the app, ensuring efficient state management and handling of complex workflows
 
@@ -53,11 +54,3 @@ Once the bot and userbot are up and running, the Telegram Story Viewer is ready 
 
 <h2>🚀 Usage</h2>
 Just send a message to the bot with the desired Telegram username (@username). Wait for the bot to retrieve and deliver the stories back to you
-
-<h2>📸 Screenshots</h2>
-
-<table>
-	<tr>
-		<td><img src="https://github.com/chupapee/readme-storage/blob/main/images/bots/tg-stories-downloader-bot.png" alt="telegram stories downloader bot"></td>
-	</tr>
-</table>
