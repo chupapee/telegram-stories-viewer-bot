@@ -1,0 +1,20 @@
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: deploy
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: executing remote ssh commands
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: chupapee
+        password: ${{ secrets.SSH_PASSWORD }}
+        script: |
+          cd telegram-stories-viewer-bot
+          yarn deploy
