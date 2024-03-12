@@ -39,7 +39,7 @@ export class StoriesBot {
 }
 
 async function initClient() {
-  const storeSession = new StoreSession('folder_name');
+  const storeSession = new StoreSession('userbot-session');
 
   const client = new TelegramClient(
     storeSession,
