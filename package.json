@@ -1,5 +1,5 @@
 {
-	"name": "telegram-stories-downloader-bot",
+	"name": "telegram-stories-viewer-bot",
 	"version": "1.0.0",
 	"main": "./src/index.ts",
 	"author": "k.khamidov <khamidoff09@gmail.com>",
@@ -9,7 +9,9 @@
 		"build": "tsc && tsc-alias",
 		"lint": "eslint src",
 		"lint:fix": "eslint src --fix",
-		"process:start": "yarn build && npx pm2 start ecosystem.config.js"
+    "process:stop": "npx pm2 stop ecosystem.config.js && npx pm2 delete ecosystem.config.js",
+		"process:start": "yarn build && npx pm2 start ecosystem.config.js",
+    "deploy": "yarn process:stop && yarn process:start"
 	},
 	"dependencies": {
 		"@supabase/supabase-js": "^2.39.3",
