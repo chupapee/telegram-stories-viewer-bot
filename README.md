@@ -15,6 +15,100 @@
 	</tr>
 </table>
 
+<h2>⚙️ How it works?</h2>
+
+<details>
+
+  <summary>• Initiate the userbot:</summary>
+  <br/>
+
+  ```typescript
+  import { TelegramClient } from 'telegram';
+  import { StoreSession } from 'telegram/sessions';
+
+  async function main() {
+    const client = await initClient();
+  }
+
+  async function initClient() {
+    const storeSession = new StoreSession('userbot-session');
+
+    const client = new TelegramClient(
+      storeSession,
+      USERBOT_API_ID,
+      USERBOT_API_HASH,
+      {
+        connectionRetries: 5,
+      }
+    );
+
+    await client.start({
+      phoneNumber: USERBOT_PHONE_NUMBER,
+      password: async () => await input.text('Please enter your password: '),
+      phoneCode: async () => await input.text('Please enter the code you received: '),
+      onError: (err) => console.log('error: ', err),
+    });
+    console.log('You should now be connected.');
+    console.log(client.session.save()); // Save the session to avoid logging in again
+    await client.sendMessage('me', { message: 'Hi!' });
+
+    return client;
+  }
+```
+
+</details>
+
+• Get user's entities by username:
+```typescript
+const username = '@chupapee';
+const entity = await client.getEntity(username);
+```
+• Get stories data by entity:
+```typescript
+import { Api } from 'telegram';
+
+const activeStories = await client.invoke(
+  new Api.stories.GetPeerStories({ peer: entity })
+);
+
+const pinnedStories = await client.invoke(
+  new Api.stories.GetPinnedStories({ peer: entity })
+);
+```
+• Download stories using `media` prop of story object:
+```typescript
+const stories = await downloadStories(activeStories, pinnedStories);
+
+async function downloadStories(activeStories, pinnedStories) {
+  const result = [];
+
+  for (const story of [...activeStories, ...pinnedStories]) {
+    const buffer = await client.downloadMedia(story.media);
+    if (buffer) {
+      result.push({
+        buffer,
+        mediaType: 'photo' in story.media ? 'photo' : 'video',
+      });
+    }
+  }
+
+  return result;
+}
+```
+• Send downloaded stories to user using Telegraf api (not Gramjs's userbot):
+```typescript
+import { Telegraf } from 'telegraf';
+
+const bot = new Telegraf(BOT_TOKEN);
+bot.telegram.sendMediaGroup(
+  chatId,
+  stories.map((story) => ({
+    media: { source: story.buffer },
+    type: story.mediaType,
+  }))
+)
+```
+
 <h2>🧰 Tools Used</h2>
 
 🤖 <a href="https://gram.js.org/">GramJS</a> 🤖 - Provides access to the Telegram client API based on MTProto
