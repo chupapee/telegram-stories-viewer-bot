@@ -61,16 +61,18 @@ const getAllStoriesFx = createEffect(async (task: MessageInfo) => {
       activeStories = active.stories.stories;
     }
 
-    bot.telegram.editMessageText(
-      task.chatId!,
-      message_id,
-      undefined,
-      `${
-        active.stories.stories.length > 0
-          ? `⚡️ ${active.stories.stories.length} Active stories found!`
-          : '🚫 Active stories not found!'
-      }\n` + '⏳ Fetching pinned stories...'
-    );
+    if (message_id) {
+      bot.telegram.editMessageText(
+        task.chatId!,
+        message_id,
+        undefined,
+        `${
+          active.stories.stories.length > 0
+            ? `⚡️ ${active.stories.stories.length} Active stories found!`
+            : '🚫 Active stories not found!'
+        }\n` + '⏳ Fetching pinned stories...'
+      );
+    }
 
     console.log('getting pinned stories');
 
@@ -82,21 +84,23 @@ const getAllStoriesFx = createEffect(async (task: MessageInfo) => {
         (x) => !activeStories.some((y) => y.id === x.id)
       );
 
-    bot.telegram.editMessageText(
-      task.chatId!,
-      message_id,
-      undefined,
-      `
-      ${
-        active.stories.stories.length > 0
-          ? `⚡️ ${active.stories.stories.length} Active stories found!`
-          : '🚫 Active stories not found!'
-      }\n${
-        pinned.stories.length > 0
-          ? `📌 ${pinned.stories.length} Pinned stories found!`
-          : '🚫 Pinned stories not found!'
-      }`
-    );
+    if (message_id) {
+      bot.telegram.editMessageText(
+        task.chatId!,
+        message_id,
+        undefined,
+        `
+        ${
+          active.stories.stories.length > 0
+            ? `⚡️ ${active.stories.stories.length} Active stories found!`
+            : '🚫 Active stories not found!'
+        }\n${
+          pinned.stories.length > 0
+            ? `📌 ${pinned.stories.length} Pinned stories found!`
+            : '🚫 Pinned stories not found!'
+        }`
+      );
+    }
 
     if (activeStories.length > 0 || pinnedStories.length > 0) {
       notifyAdmin({
@@ -126,55 +130,73 @@ const sendStoriesFx = createEffect(
     task: MessageInfo;
   }) => {
     if (activeStories.length > 0) {
-      const mapped = mapStories(activeStories).filter((_x, i) => i < 10); // max 10 stories per user;
+      const mapped = mapStories(activeStories);
 
       try {
-        bot.telegram.editMessageText(
-          task.chatId!,
-          task.tempMessageId!,
-          undefined,
-          `⚡️ ${activeStories.length} Active stories found!\n` +
-            `${
-              pinnedStories.length > 0
-                ? `📌 ${pinnedStories.length} Pinned stories found!`
-                : '🚫 Pinned stories not found!'
-            }\n` +
-            '⏳ Downloading Active stories...'
-        );
+        if (task.tempMessageId) {
+          bot.telegram.editMessageText(
+            task.chatId!,
+            task.tempMessageId,
+            undefined,
+            `⚡️ ${activeStories.length} Active stories found!\n` +
+              `${
+                pinnedStories.length > 0
+                  ? `📌 ${pinnedStories.length} Pinned stories found!`
+                  : '🚫 Pinned stories not found!'
+              }\n` +
+              '⏳ Downloading Active stories...'
+          );
+        }
         console.log(`downloading ${mapped.length} active stories`);
 
-        const uploadableStList = await downloadStories(mapped);
+        await downloadStories(mapped, 'active');
+
         console.log(`active stories downloaded`);
 
-        bot.telegram.editMessageText(
-          task.chatId!,
-          task.tempMessageId!,
-          undefined,
-          `⚡️ ${activeStories.length} Active stories found!\n` +
-            `${
-              pinnedStories.length > 0
-                ? `📌 ${pinnedStories.length} Pinned stories found!`
-                : '🚫 Pinned stories not found!'
-            }\n` +
-            `📥 ${uploadableStList.length} Active stories downloaded successfully!\n` +
-            '⏳ Uploading stories to Telegram...'
-        );
+        const uploadableStories = mapped.filter((x) => x.buffer);
+
+        if (task.tempMessageId) {
+          bot.telegram.editMessageText(
+            task.chatId,
+            task.tempMessageId,
+            undefined,
+            `⚡️ ${activeStories.length} Active stories found!\n` +
+              `${
+                pinnedStories.length > 0
+                  ? `📌 ${pinnedStories.length} Pinned stories found!`
+                  : '🚫 Pinned stories not found!'
+              }\n` +
+              `📥 ${uploadableStories.length} Active stories downloaded successfully!\n` +
+              '⏳ Uploading stories to Telegram...'
+          );
+        }
         console.log(
-          `sending ${uploadableStList.length} uploadable active stories`
+          `sending ${uploadableStories.length} uploadable active stories`
         );
 
-        await bot.telegram.sendMediaGroup(
-          task.chatId,
-          uploadableStList.map((x) => ({
-            media: { source: x.buffer! },
-            type: x.mediaType,
-            caption: 'Active stories',
-          }))
-        );
+        if (uploadableStories.length > 0) {
+          const chunkedList = chunkMediafiles(uploadableStories);
+
+          for (const album of chunkedList) {
+            await bot.telegram.sendMediaGroup(
+              task.chatId,
+              album.map((x) => ({
+                media: { source: x.buffer! },
+                type: x.mediaType,
+                caption: 'Active stories',
+              }))
+            );
+          }
+        } else {
+          await bot.telegram.sendMessage(
+            task.chatId,
+            '❌ Cannot download Active stories, most likely they have too large size to send them via bot'
+          );
+        }
 
         notifyAdmin({
           status: 'info',
-          baseInfo: `📥 ${uploadableStList.length} Active stories uploaded to user!`,
+          baseInfo: `📥 ${uploadableStories.length} Active stories uploaded to user!`,
         });
         await timeout(2000);
       } catch (error) {
@@ -187,47 +209,73 @@ const sendStoriesFx = createEffect(
     }
 
     if (pinnedStories.length > 0) {
-      const mapped = mapStories(pinnedStories).filter((_x, i) => i < 10); // max 10 stories per user
+      const mapped = mapStories(pinnedStories)
+        .sort((x, y) => {
+          if (x.mediaType === 'photo') return -1;
+          if (y.mediaType === 'photo') return 1;
+          return 0;
+        })
+        .slice(0, 21);
+
       try {
         console.log(`downloading ${mapped.length} pinned stories`);
-        bot.telegram.editMessageText(
-          task.chatId!,
-          task.tempMessageId!,
-          undefined,
-          `⚡️ ${activeStories.length} Active stories found!\n` +
-            `📌 ${pinnedStories.length} Pinned stories found!\n` +
-            '✅ Active stories processed!\n' +
-            '⏳ Downloading Pinned stories...'
-        );
+        if (task.tempMessageId) {
+          bot.telegram.editMessageText(
+            task.chatId!,
+            task.tempMessageId!,
+            undefined,
+            `⚡️ ${activeStories.length} Active stories found!\n` +
+              `📌 ${pinnedStories.length} Pinned stories found!\n` +
+              '✅ Active stories processed!\n' +
+              '⏳ Downloading Pinned stories...'
+          );
+        }
 
-        const uploadableStList = await downloadStories(mapped);
+        await downloadStories(mapped, 'pinned');
+
+        const uploadableStories = mapped.filter((x) => x.buffer);
+
         console.log(`pinned stories downloaded`);
 
         console.log(
-          `sending ${uploadableStList.length} uploadable pinned stories`
+          `sending ${uploadableStories.length} uploadable pinned stories`
         );
-        bot.telegram.editMessageText(
-          task.chatId!,
-          task.tempMessageId!,
-          undefined,
-          `⚡️ ${activeStories.length} Active stories found!\n` +
-            `📌 ${pinnedStories.length} Pinned stories found!\n` +
-            '✅ Active stories processed!\n' +
-            `📥 ${uploadableStList.length} Pinned stories downloaded successfully!\n` +
-            '⏳ Uploading stories to Telegram...'
-        );
+        if (task.tempMessageId) {
+          bot.telegram.editMessageText(
+            task.chatId!,
+            task.tempMessageId,
+            undefined,
+            `⚡️ ${activeStories.length} Active stories found!\n` +
+              `📌 ${pinnedStories.length} Pinned stories found!\n` +
+              '✅ Active stories processed!\n' +
+              `📥 ${uploadableStories.length} Pinned stories downloaded successfully!\n` +
+              '⏳ Uploading stories to Telegram...'
+          );
+        }
 
-        await bot.telegram.sendMediaGroup(
-          task.chatId,
-          uploadableStList.map((x) => ({
-            media: { source: x.buffer! },
-            type: x.mediaType,
-            caption: 'Pinned stories',
-          }))
-        );
+        if (uploadableStories.length > 0) {
+          const chunkedList = chunkMediafiles(uploadableStories);
+
+          for (const album of chunkedList) {
+            await bot.telegram.sendMediaGroup(
+              task.chatId,
+              album.map((x) => ({
+                media: { source: x.buffer! },
+                type: x.mediaType,
+                caption: 'Pinned stories',
+              }))
+            );
+          }
+        } else {
+          await bot.telegram.sendMessage(
+            task.chatId,
+            '❌ Cannot download Pinned stories, most likely they have too large size to send them via bot'
+          );
+        }
+
         notifyAdmin({
           status: 'info',
-          baseInfo: `📥 ${uploadableStList.length} Pinned stories uploaded to user!`,
+          baseInfo: `📥 ${uploadableStories.length} Pinned stories uploaded to user!`,
         });
       } catch (error) {
         notifyAdmin({
@@ -359,7 +407,9 @@ sample({
 });
 
 const cleanupTempMessages = createEffect((task: MessageInfo) => {
-  bot.telegram.deleteMessage(task.chatId!, task.tempMessageId!);
+  if (task.tempMessageId) {
+    bot.telegram.deleteMessage(task.chatId!, task.tempMessageId!);
+  }
 });
 
 sample({
@@ -374,17 +424,48 @@ function taskGuard(task: MessageInfo | null): task is MessageInfo {
   return task !== null;
 }
 
-async function downloadStories(stories: ReturnType<typeof mapStories>) {
+async function downloadStories(
+  stories: ReturnType<typeof mapStories>,
+  storiesType: 'active' | 'pinned'
+) {
   const client = await Userbot.getInstance();
+
   for (const story of stories) {
     try {
-      const buffer = await client.downloadMedia(story.media);
-      story.buffer = buffer as Buffer;
+      await Promise.race([
+        new Promise((ok) => {
+          // max pinned video-story downloading time = 30s
+          // FIXME: possible memory leak if media downloads faster than this promise resolvs (creating timeout too much times)
+          if (storiesType === 'pinned' && story.mediaType === 'video') {
+            setTimeout(ok, 30_000);
+          }
+        }),
+        new Promise((ok) => {
+          client.downloadMedia(story.media).then((buffer) => {
+            story.buffer = buffer as Buffer;
+            ok(null);
+          });
+        }),
+      ]);
+      await timeout(1000);
     } catch (error) {
       continue;
     }
   }
-  return stories.filter((x) => x.buffer !== undefined);
+}
+
+function chunkMediafiles(files: ReturnType<typeof mapStories>) {
+  return files.reduce(
+    (acc, curr) => {
+      if (acc[acc.length - 1].length === 10) {
+        acc.push([curr]);
+        return acc;
+      }
+      acc[acc.length - 1].push(curr);
+      return acc;
+    },
+    [[]] as Array<ReturnType<typeof mapStories>>
+  );
 }
 
 function mapStories(stories: Api.TypeStoryItem[]) {
@@ -420,21 +501,19 @@ export async function notifyAdmin({
   baseInfo,
 }: {
   task?: MessageInfo;
-  status: 'start' | 'end' | 'error' | 'info';
+  status: 'start' | 'error' | 'info';
   errorInfo?: { targetUsername: string; cause: any };
   baseInfo?: string;
 }) {
-  if (status === 'end') {
-    bot.telegram.sendMessage(BOT_ADMIN_ID, '✅ task done successfully!');
-    return;
-  }
+  const userInfo = JSON.stringify(task?.user, null, 2);
 
   if (status === 'error' && errorInfo) {
     bot.telegram.sendMessage(
       BOT_ADMIN_ID,
-      `🛑 ERROR 🛑\n
-      👤 target username: @${errorInfo.targetUsername}\n
-      reason: ${JSON.stringify(errorInfo.cause)}`
+      '🛑 ERROR 🛑\n' +
+        `👤 Target username: ${errorInfo.targetUsername}\n` +
+        `reason: ${JSON.stringify(errorInfo.cause)}\n` +
+        `author: ${userInfo}`
     );
     return;
   }
@@ -444,9 +523,7 @@ export async function notifyAdmin({
     return;
   }
 
-  if (task?.user) {
-    const userInfo = JSON.stringify(task.user, null, 2);
-
+  if (status === 'start') {
     bot.telegram.sendMessage(BOT_ADMIN_ID, `👤 Task started by: ${userInfo}`, {
       parse_mode: 'HTML',
     });
