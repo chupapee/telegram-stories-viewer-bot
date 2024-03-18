@@ -153,7 +153,9 @@ const sendStoriesFx = createEffect(
 
         console.log(`active stories downloaded`);
 
-        const uploadableStories = mapped.filter((x) => x.buffer);
+        const uploadableStories = mapped.filter(
+          (x) => x.buffer && x.buffer.byteLength <= 47 * 1024 * 1024 // max size = 50mb
+        );
 
         if (task.tempMessageId) {
           bot.telegram.editMessageText(
@@ -233,7 +235,9 @@ const sendStoriesFx = createEffect(
 
         await downloadStories(mapped, 'pinned');
 
-        const uploadableStories = mapped.filter((x) => x.buffer);
+        const uploadableStories = mapped.filter(
+          (x) => x.buffer && x.buffer.byteLength <= 47 * 1024 * 1024 // max size = 50mb
+        );
 
         console.log(`pinned stories downloaded`);
 
