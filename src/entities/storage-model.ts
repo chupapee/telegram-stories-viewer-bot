@@ -1,6 +1,6 @@
 import { supabase } from 'index';
-import { notifyAdmin } from 'model';
 import { User } from 'telegraf/typings/core/types/typegram';
+import { notifyAdmin } from 'utils';
 
 export const saveUser = async (user: User) => {
   try {

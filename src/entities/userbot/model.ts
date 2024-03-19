@@ -2,13 +2,10 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-ignore
 import input from 'input';
-// import { userbotMessagesListener } from 'model';
 import { TelegramClient } from 'telegram';
-import { Entity } from 'telegram/define';
 import { StoreSession } from 'telegram/sessions';
 
 import {
-  STORIES_BOT_USERNAME,
   USERBOT_API_HASH,
   USERBOT_API_ID,
   USERBOT_PHONE_NUMBER,
@@ -23,18 +20,6 @@ export class Userbot {
       Userbot.client = await initClient();
     }
     return Userbot.client;
-  }
-}
-
-export class StoriesBot {
-  private static entity: Entity;
-
-  public static async getEntity() {
-    if (!StoriesBot.entity) {
-      const client = await Userbot.getInstance();
-      StoriesBot.entity = await client.getEntity(STORIES_BOT_USERNAME);
-    }
-    return StoriesBot.entity;
   }
 }
 
