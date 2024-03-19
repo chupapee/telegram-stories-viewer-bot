@@ -26,15 +26,40 @@ bot.start(async (ctx) => {
 bot.on('message', async (ctx) => {
   const handleMessage = async () => {
     if ('text' in ctx.message) {
-      const targetUsername = ctx.message.text;
-      if (targetUsername.startsWith('@')) {
+      const text = ctx.message.text;
+
+      // username
+      if (text.startsWith('@')) {
         newTaskReceived({
           chatId: String(ctx.chat.id),
-          targetUsername,
+          link: text,
+          linkType: 'username',
           locale: '',
           user: ctx.from,
         });
-      } else await ctx.reply('🚫 Please send a valid username');
+        return;
+      }
+
+      // particular story link
+      if (text.startsWith('https') || text.startsWith('t.me/')) {
+        const paths = text.split('/');
+        if (
+          !Number.isNaN(Number(paths.at(-1))) &&
+          paths.at(-2) === 's' &&
+          paths.at(-3)
+        ) {
+          newTaskReceived({
+            chatId: String(ctx.chat.id),
+            link: text,
+            linkType: 'link',
+            locale: '',
+            user: ctx.from,
+          });
+          return;
+        }
+      }
+
+      await ctx.reply('🚫 Please send a valid username');
     }
   };
 
