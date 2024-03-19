@@ -1,45 +1,77 @@
 import { createEffect, createEvent, createStore, sample } from 'effector';
+import { bot } from 'index';
 import { and, not } from 'patronum';
 import {
-  cleanupTempMessages,
   getAllStoriesFx,
+  getParticularStory,
   sendErrorMessageFx,
   sendStoriesFx,
-  sendWaitMessageFx,
 } from 'services';
 import { User } from 'telegraf/typings/core/types/typegram';
 import { Api } from 'telegram';
 
 import { saveUser } from '@entities/storage-model';
 
-export interface MessageInfo {
+export interface UserInfo {
   chatId: string;
-  targetUsername: string;
+  link: string;
+  linkType: 'username' | 'link';
   locale: string;
   user?: User;
-  tempMessageId?: number;
+  tempMessage?: {
+    id: number;
+    text?: string;
+  };
 }
 
-export const $currentTask = createStore<MessageInfo | null>(null);
-export const $tasksQueue = createStore<MessageInfo[]>([]);
+export const $currentTask = createStore<UserInfo | null>(null);
+export const $tasksQueue = createStore<UserInfo[]>([]);
 const $isTaskRunning = createStore(false);
 
 const checkTasks = createEvent();
-export const tempMessageSent = createEvent<number>();
+export const tempMessageSent = createEvent<{
+  id: number;
+  text?: string;
+}>();
 
-$currentTask.on(tempMessageSent, (prev, messageId) => ({
+$currentTask.on(tempMessageSent, (prev, msgInfo) => ({
   ...prev!,
-  tempMessageId: messageId,
+  tempMessage: msgInfo,
 }));
 
 $tasksQueue.watch((tasks) => console.log({ tasks }));
 
 export const taskDone = createEvent();
-export const newTaskReceived = createEvent<MessageInfo>();
+export const newTaskReceived = createEvent<UserInfo>();
 
 const taskStarted = createEvent();
 
 const saveUserFx = createEffect(saveUser);
+
+export const cleanupTempMessages = createEffect((task: UserInfo) => {
+  if (task.tempMessage?.id) {
+    bot.telegram.deleteMessage(task.chatId!, task.tempMessage.id);
+  }
+});
+
+export const sendWaitMessageFx = createEffect(async ({ chatId }: UserInfo) => {
+  const { chatId: currentTaskChatId } = $currentTask.getState() ?? {};
+
+  if (chatId === currentTaskChatId) {
+    await bot.telegram.sendMessage(
+      chatId,
+      '⚠️ Only 1 link can be proceeded at once, please be patient'
+    );
+    return;
+  }
+
+  const queueLength = $tasksQueue.getState().length;
+
+  await bot.telegram.sendMessage(
+    chatId,
+    `⏳ Please wait for your queue, there're ${queueLength} users before you!`
+  );
+});
 
 $tasksQueue.on(newTaskReceived, (tasks, newTask) => {
   const alreadyExist = tasks.some((x) => x.chatId === newTask.chatId);
@@ -68,25 +100,42 @@ sample({
   target: sendWaitMessageFx,
 });
 
+const taskInitiated = createEvent();
+
 sample({
   clock: checkTasks,
   filter: and(
     not($isTaskRunning),
     $tasksQueue.map((tasks) => tasks.length > 0)
   ),
-  target: taskStarted,
+  target: taskInitiated,
+});
+
+sample({
+  clock: taskInitiated,
+  source: $tasksQueue,
+  fn: (tasks) => tasks[0],
+  target: [$currentTask, taskStarted],
 });
 
 sample({
   clock: taskStarted,
-  source: $tasksQueue,
-  fn: (tasks) => tasks[0],
-  target: [$currentTask, getAllStoriesFx],
+  source: $currentTask,
+  filter: (task): task is UserInfo => task !== null && task.linkType === 'link',
+  target: getParticularStory,
 });
 
 sample({
+  clock: taskStarted,
   source: $currentTask,
-  clock: getAllStoriesFx.doneData,
+  filter: (task): task is UserInfo =>
+    task !== null && task.linkType === 'username',
+  target: getAllStoriesFx,
+});
+
+sample({
+  clock: [getAllStoriesFx.doneData, getParticularStory.doneData],
+  source: $currentTask,
   filter: (task, result) =>
     typeof result === 'string' && task?.chatId !== undefined,
   fn: (task, result) => ({ task: task!, message: result as string }), // FIXME: as string won't be necessary in ts 5.5
@@ -94,8 +143,8 @@ sample({
 });
 
 sample({
+  clock: [getAllStoriesFx.doneData, getParticularStory.doneData],
   source: $currentTask,
-  clock: getAllStoriesFx.doneData,
   filter: (task, result) => typeof result === 'object' && task !== null,
   fn: (task, result) => ({
     task: task!,
@@ -115,6 +164,6 @@ sample({
 sample({
   clock: taskDone,
   source: $currentTask,
-  filter: (task): task is MessageInfo => task !== null,
+  filter: (task): task is UserInfo => task !== null,
   target: cleanupTempMessages,
 });

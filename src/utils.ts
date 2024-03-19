@@ -1,5 +1,5 @@
 import { bot } from 'index';
-import { MessageInfo } from 'model';
+import { UserInfo } from 'model';
 import { Api } from 'telegram';
 
 import { Userbot } from '@entities/userbot/model';
@@ -82,7 +82,7 @@ export async function notifyAdmin({
   errorInfo,
   baseInfo,
 }: {
-  task?: MessageInfo;
+  task?: UserInfo;
   status: 'start' | 'error' | 'info';
   errorInfo?: { targetUsername: string; cause: any };
   baseInfo?: string;
