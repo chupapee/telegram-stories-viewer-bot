@@ -24,7 +24,10 @@ export async function downloadStories(
         }),
         new Promise((ok) => {
           client.downloadMedia(story.media).then((buffer) => {
-            story.buffer = buffer as Buffer;
+            if (buffer instanceof Buffer) {
+              story.buffer = buffer;
+              story.bufferSize = Math.floor(buffer.byteLength / (1024 * 1024));
+            }
             ok(null);
           });
         }),
@@ -39,7 +42,8 @@ export async function downloadStories(
 export function chunkMediafiles(files: ReturnType<typeof mapStories>) {
   return files.reduce(
     (acc: Array<ReturnType<typeof mapStories>>, curr) => {
-      if (acc[acc.length - 1].length === 10) {
+      const tempAccWithCurr = [...acc[acc.length - 1], curr];
+      if (tempAccWithCurr.length === 10 || sumOfSizes(tempAccWithCurr) >= 50) {
         acc.push([curr]);
         return acc;
       }
@@ -50,13 +54,23 @@ export function chunkMediafiles(files: ReturnType<typeof mapStories>) {
   );
 }
 
+function sumOfSizes(list: { bufferSize?: number }[]) {
+  return list.reduce((acc, curr) => {
+    if (curr.bufferSize) {
+      return acc + curr.bufferSize;
+    }
+    return acc;
+  }, 0);
+}
+
 export function mapStories(stories: Api.TypeStoryItem[]) {
   const mappedStories: {
     caption?: string;
     media: Api.StoryItem['media'];
+    mediaType: 'photo' | 'video';
     date: Date;
     buffer?: Buffer;
-    mediaType: 'photo' | 'video';
+    bufferSize?: number;
   }[] = [];
 
   stories.forEach((x) => {

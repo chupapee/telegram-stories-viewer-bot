@@ -238,11 +238,8 @@ async function sendPinnedStories({ stories, task }: SendStoriesArgs) {
     }
 
     await downloadStories(mapped, 'pinned');
-
     const uploadableStories = mapped.filter(
-      (x) =>
-        // max size = 50mb
-        x.buffer && Math.floor(x.buffer.byteLength / (1024 * 1024)) <= 49
+      (x) => x.buffer && x.bufferSize! < 50 // skip too large file
     );
 
     console.log(`pinned stories downloaded`);
