@@ -12,42 +12,7 @@ import {
 import { Userbot } from '@entities/userbot/model';
 import { timeout } from '@shared/lib';
 
-export const getParticularStory = createEffect(async (task: UserInfo) => {
-  try {
-    const client = await Userbot.getInstance();
-    const linkPaths = task.link.split('/');
-    const storyId = Number(linkPaths.at(-1));
-    const username = linkPaths.at(-3);
-
-    const entity = await client.getEntity(username!);
-
-    const { message_id } = await bot.telegram.sendMessage(
-      task.chatId!,
-      '⏳ Fetching story...'
-    );
-    notifyAdmin({ task, status: 'start' });
-
-    tempMessageSent({ id: message_id });
-
-    const storyData = await client.invoke(
-      new Api.stories.GetStoriesByID({ id: [storyId], peer: entity })
-    );
-
-    const text = '⚡️ Story founded successfully!';
-    bot.telegram.editMessageText(task.chatId!, message_id, undefined, text);
-    tempMessageSent({ id: message_id, text });
-
-    return {
-      activeStories: [],
-      pinnedStories: [],
-      particularStory: storyData.stories[0],
-    };
-  } catch (error) {
-    console.log('ERROR occured:', error);
-    return '🚫 Something wrong with the link!';
-  }
-});
-
+// ----- GET -----
 export const getAllStoriesFx = createEffect(async (task: UserInfo) => {
   try {
     const client = await Userbot.getInstance();
@@ -103,6 +68,50 @@ export const getAllStoriesFx = createEffect(async (task: UserInfo) => {
   }
 });
 
+export const getParticularStory = createEffect(async (task: UserInfo) => {
+  try {
+    const client = await Userbot.getInstance();
+    const linkPaths = task.link.split('/');
+    const storyId = Number(linkPaths.at(-1));
+    const username = linkPaths.at(-3);
+
+    const entity = await client.getEntity(username!);
+
+    const { message_id } = await bot.telegram.sendMessage(
+      task.chatId!,
+      '⏳ Fetching story...'
+    );
+    notifyAdmin({ task, status: 'start' });
+
+    tempMessageSent({ id: message_id });
+
+    const storyData = await client.invoke(
+      new Api.stories.GetStoriesByID({ id: [storyId], peer: entity })
+    );
+
+    if (storyData.stories.length === 0) throw new Error('stories not found!');
+
+    const text = '⚡️ Story founded successfully!';
+    await bot.telegram.editMessageText(
+      task.chatId!,
+      message_id,
+      undefined,
+      text
+    );
+    tempMessageSent({ id: message_id, text });
+
+    return {
+      activeStories: [],
+      pinnedStories: [],
+      particularStory: storyData.stories[0],
+    };
+  } catch (error) {
+    console.log('ERROR occured:', error);
+    return '🚫 Something wrong with the link!';
+  }
+});
+
+// ----- SEND -----
 export const sendStoriesFx = createEffect(
   async ({
     activeStories = [],
@@ -216,13 +225,7 @@ async function sendActiveStories({ stories, task }: SendStoriesArgs) {
 }
 
 async function sendPinnedStories({ stories, task }: SendStoriesArgs) {
-  const mapped = mapStories(stories)
-    .sort((x, y) => {
-      if (x.mediaType === 'photo') return -1;
-      if (y.mediaType === 'photo') return 1;
-      return 0;
-    })
-    .slice(0, 21);
+  const mapped = mapStories(stories).slice(0, 21);
 
   try {
     console.log(`downloading ${mapped.length} pinned stories`);

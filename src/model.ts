@@ -1,12 +1,12 @@
-import { createEffect, createEvent, createStore, sample } from 'effector';
-import { bot } from 'index';
-import { and, not } from 'patronum';
 import {
   getAllStoriesFx,
   getParticularStory,
   sendErrorMessageFx,
   sendStoriesFx,
-} from 'services';
+} from 'controllers';
+import { createEffect, createEvent, createStore, sample } from 'effector';
+import { bot } from 'index';
+import { and, not } from 'patronum';
 import { User } from 'telegraf/typings/core/types/typegram';
 import { Api } from 'telegram';
 
