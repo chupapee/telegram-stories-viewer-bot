@@ -18,5 +18,5 @@
 			"@shared/*": ["./shared/*"],
 		}
 	},
-	"include": ["src", "src/shared/config/locales/*.json"]
+	"include": ["src", "src/shared/config/locales/*.json", "./types.d.ts"]
 }
