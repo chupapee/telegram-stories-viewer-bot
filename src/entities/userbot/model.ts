@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/return-await */
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-ignore
 import input from 'input';
 import { TelegramClient } from 'telegram';
 import { StoreSession } from 'telegram/sessions';
@@ -37,9 +34,8 @@ async function initClient() {
 
   await client.start({
     phoneNumber: USERBOT_PHONE_NUMBER,
-    password: async () => await input.text('Please enter your password: '),
-    phoneCode: async () =>
-      await input.text('Please enter the code you received: '),
+    password: () => input.text('Please enter your password: '),
+    phoneCode: () => input.text('Please enter the code you received: '),
     onError: (err) => console.log('error', err),
   });
   console.log('You should now be connected.');
