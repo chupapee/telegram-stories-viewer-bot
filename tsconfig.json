@@ -4,7 +4,6 @@
 		"types": ["node"],
 		"target": "ESNext",
 		"module": "commonjs",
-		"lib": ["ES2015", "DOM"],
 		"outDir": "dist",
 		"strict": true,
 		"noImplicitAny": true,
@@ -18,5 +17,5 @@
 			"@shared/*": ["./shared/*"],
 		}
 	},
-	"include": ["src", "src/shared/config/locales/*.json", "./types.d.ts"]
+	"include": ["src", "./types.d.ts"]
 }
