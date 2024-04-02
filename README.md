@@ -6,12 +6,12 @@
 
 <table>
 	<tr>
-		<td><img src="https://github.com/chupapee/readme-storage/blob/main/images/bots/tgdl-happy-path.png" alt="downloading happy path"></td>
-                <td><img src="https://github.com/chupapee/readme-storage/blob/main/images/bots/tgdl-progress-info.png" alt="downloading progress info"></td>
+		<td><img src="assets/happy-path.png" alt="downloading happy path"></td>
+                <td><img src="assets/progress-info.png" alt="downloading progress info"></td>
 	</tr>
         <tr>
-		<td><img src="https://github.com/chupapee/readme-storage/blob/main/images/bots/tgdl-error-use-cases.png" alt="wrong command use cases"></td>
-                <td><img src="https://github.com/chupapee/readme-storage/blob/main/images/bots/tgdl-preview.png" alt="bot preview info"></td>
+		<td><img src="assets/error.png" alt="wrong command use cases"></td>
+                <td><img src="assets/preview.png" alt="bot preview info"></td>
 	</tr>
 </table>
 
