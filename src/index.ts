@@ -66,6 +66,21 @@ bot.on('message', async (ctx) => {
   handleMessage();
 });
 
+bot.on('callback_query', (ctx) => {
+  ctx.answerCbQuery('⏳ Please wait...');
+  if ('data' in ctx.callbackQuery) {
+    const [username, page] = ctx.callbackQuery.data.split('&');
+    newTaskReceived({
+      chatId: String(ctx?.from?.id ?? 0),
+      link: username,
+      linkType: 'username',
+      currentPage: Number(page),
+      locale: '',
+      user: ctx.from,
+    });
+  }
+});
+
 bot.launch({ dropPendingUpdates: true });
 initUserbot();
 

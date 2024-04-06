@@ -128,7 +128,7 @@ export const sendStoriesFx = createEffect(
       await sendParticularStory({ story: particularStory, task });
     }
 
-    if (activeStories.length > 0) {
+    if (!task.currentPage && activeStories.length > 0) {
       await sendActiveStories({ stories: activeStories, task });
     }
 
@@ -225,7 +225,28 @@ async function sendActiveStories({ stories, task }: SendStoriesArgs) {
 }
 
 async function sendPinnedStories({ stories, task }: SendStoriesArgs) {
-  const mapped = mapStories(stories).slice(0, 21);
+  let mapped = mapStories(stories);
+
+  let hasMorePages = false;
+  let nextPage: number | null = null;
+  const PER_PAGE = 5;
+
+  if (stories.length >= 10) {
+    hasMorePages = true;
+    const currentPage = task.currentPage ?? 1;
+    const totalPages = Math.ceil(stories.length / PER_PAGE);
+
+    const from = (currentPage - 1) * PER_PAGE;
+    const to = from + PER_PAGE;
+    mapped = mapped.slice(from, to);
+
+    nextPage = currentPage + 1;
+
+    if (totalPages < nextPage) {
+      hasMorePages = false;
+      nextPage = null;
+    }
+  }
 
   try {
     console.log(`downloading ${mapped.length} pinned stories`);
@@ -263,22 +284,39 @@ async function sendPinnedStories({ stories, task }: SendStoriesArgs) {
     }
 
     if (uploadableStories.length > 0) {
-      const chunkedList = chunkMediafiles(uploadableStories);
-
-      for (const album of chunkedList) {
-        await bot.telegram.sendMediaGroup(
-          task.chatId,
-          album.map((x) => ({
-            media: { source: x.buffer! },
-            type: x.mediaType,
-            caption: 'Pinned stories',
-          }))
-        );
-      }
+      await bot.telegram.sendMediaGroup(
+        task.chatId,
+        uploadableStories.map((x) => ({
+          media: { source: x.buffer! },
+          type: x.mediaType,
+          caption: 'Pinned stories',
+        }))
+      );
     } else {
       await bot.telegram.sendMessage(
         task.chatId,
         '❌ Cannot download Pinned stories, most likely they have too large size to send them via bot'
+      );
+    }
+
+    if (hasMorePages && nextPage) {
+      await bot.telegram.sendMessage(
+        task.chatId,
+        `Uploaded ${(nextPage - 1) * Number(PER_PAGE)}/${
+          stories.length
+        } pinned stories ✅`,
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [
+                {
+                  text: '📥 Download more 📥',
+                  callback_data: `${task.link}&${nextPage}`,
+                },
+              ],
+            ],
+          },
+        }
       );
     }
 

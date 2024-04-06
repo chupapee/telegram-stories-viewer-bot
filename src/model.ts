@@ -16,6 +16,7 @@ export interface UserInfo {
   chatId: string;
   link: string;
   linkType: 'username' | 'link';
+  currentPage?: number;
   locale: string;
   user?: User;
   tempMessage?: {
@@ -90,6 +91,7 @@ sample({
 
 sample({
   clock: newTaskReceived,
+  filter: (task) => !task.currentPage,
   fn: (task) => task.user!,
   target: saveUserFx,
 });
