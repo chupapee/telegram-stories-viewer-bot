@@ -5,21 +5,21 @@
 <h2>📸 Screenshots</h2>
 
 <table>
-	<tr>
-		<td><img src="assets/happy-path.png" alt="downloading happy path"></td>
-                <td><img src="assets/progress-info.png" alt="downloading progress info"></td>
+  <tr>
+    <td><img src="assets/happy-path.png" alt="downloading happy path"></td>
+    <td><img src="assets/progress-info.png" alt="downloading progress info"></td>
 	</tr>
-        <tr>
-		<td><img src="assets/error.png" alt="wrong command use cases"></td>
-                <td><img src="assets/preview.png" alt="bot preview info"></td>
-	</tr>
+  <tr>
+    <td><img src="assets/direct-link.png" alt="downloading via direct link"></td>
+    <td><img src="assets/error.png" alt="wrong command use cases"></td>
+  </tr>
 </table>
 
 <h2>⚙️ How it works?</h2>
 
 <details>
 
-  <summary>• Initiate the userbot:</summary>
+  <summary>Initiate the userbot:</summary>
   <br/>
 
   ```typescript
