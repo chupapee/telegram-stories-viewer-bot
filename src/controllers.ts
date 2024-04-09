@@ -142,8 +142,9 @@ export const sendErrorMessageFx = createEffect(
   async ({ task, message }: { task: UserInfo; message: string }) => {
     console.log('error occured:', message);
     notifyAdmin({
+      task,
       status: 'error',
-      errorInfo: { cause: message, targetUsername: task.link },
+      errorInfo: { cause: message },
     });
     bot.telegram.sendMessage(task.chatId, message);
   }
@@ -217,8 +218,9 @@ async function sendActiveStories({ stories, task }: SendStoriesArgs) {
     await timeout(2000);
   } catch (error) {
     notifyAdmin({
+      task,
       status: 'error',
-      errorInfo: { cause: error, targetUsername: task.link },
+      errorInfo: { cause: error },
     });
     console.log('error occured on sending ACTIVE stories:', error);
   }
@@ -327,7 +329,8 @@ async function sendPinnedStories({ stories, task }: SendStoriesArgs) {
   } catch (error) {
     notifyAdmin({
       status: 'error',
-      errorInfo: { cause: error, targetUsername: task.link },
+      task,
+      errorInfo: { cause: error },
     });
     console.log('error occured on sending PINNED stories:', error);
   }
@@ -381,7 +384,8 @@ async function sendParticularStory({
   } catch (error) {
     notifyAdmin({
       status: 'error',
-      errorInfo: { cause: error, targetUsername: task.link },
+      task,
+      errorInfo: { cause: error },
     });
     console.log('error occured on sending PINNED stories:', error);
   }

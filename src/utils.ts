@@ -98,16 +98,20 @@ export async function notifyAdmin({
 }: {
   task?: UserInfo;
   status: 'start' | 'error' | 'info';
-  errorInfo?: { targetUsername: string; cause: any };
+  errorInfo?: { cause: unknown };
   baseInfo?: string;
 }) {
-  const userInfo = JSON.stringify(task?.user, null, 2);
+  const userInfo = JSON.stringify(
+    { ...(task?.user ?? {}), username: '@' + task?.user?.username },
+    null,
+    2
+  );
 
   if (status === 'error' && errorInfo) {
     bot.telegram.sendMessage(
       BOT_ADMIN_ID,
       '🛑 ERROR 🛑\n' +
-        `👤 Target username: ${errorInfo.targetUsername}\n` +
+        `🔗 Target link: ${task?.link}\n` +
         `reason: ${JSON.stringify(errorInfo.cause)}\n` +
         `author: ${userInfo}`
     );
