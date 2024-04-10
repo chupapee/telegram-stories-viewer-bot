@@ -11,6 +11,7 @@ import { User } from 'telegraf/typings/core/types/typegram';
 import { Api } from 'telegram';
 
 import { saveUser } from '@entities/storage-model';
+import { BOT_ADMIN_ID } from '@shared/config';
 
 export interface UserInfo {
   chatId: string;
@@ -23,6 +24,7 @@ export interface UserInfo {
     id: number;
     text?: string;
   };
+  initTime: number;
 }
 
 export const $currentTask = createStore<UserInfo | null>(null);
@@ -169,3 +171,38 @@ sample({
   filter: (task): task is UserInfo => task !== null,
   target: cleanupTempMessages,
 });
+
+$currentTask.on(taskDone, () => null);
+
+/**
+ * checking task handle time
+ * restart bot if it takes more than 7 minutes
+ * Reason: downloading some stories leads to "file lives in another DC" error
+ * TODO: have to find better way to handle this issue
+ */
+const MAX_WAIT_TIME = 7;
+const intervalHasPassed = createEvent();
+const checkTaskForRestart = createEffect(async (task: UserInfo | null) => {
+  if (task) {
+    const minsFromStart = Math.floor((Date.now() - task.initTime) / 60_000);
+    console.log('minsFromStart', minsFromStart);
+
+    if (minsFromStart === MAX_WAIT_TIME) {
+      console.log(
+        "Bot stopped manually, it's took too long to download stories"
+      );
+      await bot.telegram.sendMessage(
+        BOT_ADMIN_ID,
+        "❌ Bot stopped manually, it's took too long to download stories\n\n" +
+          JSON.stringify(task, null, 2)
+      );
+      process.exit();
+    }
+  }
+});
+sample({
+  clock: intervalHasPassed,
+  source: $currentTask,
+  target: checkTaskForRestart,
+});
+setInterval(intervalHasPassed, 30_000);
