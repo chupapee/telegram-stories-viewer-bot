@@ -233,7 +233,7 @@ async function sendPinnedStories({ stories, task }: SendStoriesArgs) {
   let nextPage: number | null = null;
   const PER_PAGE = 5;
 
-  if (stories.length >= 10) {
+  if (stories.length > 5) {
     hasMorePages = true;
     const currentPage = task.currentPage ?? 1;
     const totalPages = Math.ceil(stories.length / PER_PAGE);
