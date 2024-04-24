@@ -128,11 +128,11 @@ export const sendStoriesFx = createEffect(
       await sendParticularStory({ story: particularStory, task });
     }
 
-    if (!task.currentPage && activeStories.length > 0) {
+    if (task.pageType ? task.pageType === 'active' : activeStories.length > 0) {
       await sendActiveStories({ stories: activeStories, task });
     }
 
-    if (pinnedStories.length > 0) {
+    if (task.pageType ? task.pageType === 'pinned' : pinnedStories.length > 0) {
       await sendPinnedStories({ stories: pinnedStories, task });
     }
   }
@@ -156,7 +156,28 @@ interface SendStoriesArgs {
 }
 
 async function sendActiveStories({ stories, task }: SendStoriesArgs) {
-  const mapped = mapStories(stories);
+  let mapped = mapStories(stories);
+
+  let hasMorePages = false;
+  let nextPage: number | null = null;
+  const PER_PAGE = 5;
+
+  if (stories.length >= 5) {
+    hasMorePages = true;
+    const currentPage = task.currentPage ?? 1;
+    const totalPages = Math.ceil(stories.length / PER_PAGE);
+
+    const from = (currentPage - 1) * PER_PAGE;
+    const to = from + PER_PAGE;
+    mapped = mapped.slice(from, to);
+
+    nextPage = currentPage + 1;
+
+    if (totalPages < nextPage) {
+      hasMorePages = false;
+      nextPage = null;
+    }
+  }
 
   try {
     if (task.tempMessage?.id) {
@@ -177,6 +198,10 @@ async function sendActiveStories({ stories, task }: SendStoriesArgs) {
       (x) => x.buffer && x.buffer.byteLength <= 47 * 1024 * 1024 // max size = 50mb
     );
 
+    console.log(
+      `sending ${uploadableStories.length} uploadable active stories`
+    );
+
     if (task.tempMessage?.id) {
       bot.telegram.editMessageText(
         task.chatId,
@@ -187,27 +212,41 @@ async function sendActiveStories({ stories, task }: SendStoriesArgs) {
           '⏳ Uploading stories to Telegram...'
       );
     }
-    console.log(
-      `sending ${uploadableStories.length} uploadable active stories`
-    );
 
     if (uploadableStories.length > 0) {
-      const chunkedList = chunkMediafiles(uploadableStories);
-
-      for (const album of chunkedList) {
-        await bot.telegram.sendMediaGroup(
-          task.chatId,
-          album.map((x) => ({
-            media: { source: x.buffer! },
-            type: x.mediaType,
-            caption: 'Active stories',
-          }))
-        );
-      }
+      await bot.telegram.sendMediaGroup(
+        task.chatId,
+        uploadableStories.map((x) => ({
+          media: { source: x.buffer! },
+          type: x.mediaType,
+          caption: 'Active stories',
+        }))
+      );
     } else {
       await bot.telegram.sendMessage(
         task.chatId,
         '❌ Cannot download Active stories, most likely they have too large size to send them via bot'
+      );
+    }
+
+    if (hasMorePages && nextPage) {
+      await bot.telegram.sendMessage(
+        task.chatId,
+        `Uploaded ${(nextPage - 1) * Number(PER_PAGE)}/${
+          stories.length
+        } active stories ✅`,
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [
+                {
+                  text: '📥 Download more Active stories 📥',
+                  callback_data: `active&${task.link}&${nextPage}`,
+                },
+              ],
+            ],
+          },
+        }
       );
     }
 
@@ -233,7 +272,7 @@ async function sendPinnedStories({ stories, task }: SendStoriesArgs) {
   let nextPage: number | null = null;
   const PER_PAGE = 5;
 
-  if (stories.length >= 10) {
+  if (stories.length >= 5) {
     hasMorePages = true;
     const currentPage = task.currentPage ?? 1;
     const totalPages = Math.ceil(stories.length / PER_PAGE);
@@ -312,8 +351,8 @@ async function sendPinnedStories({ stories, task }: SendStoriesArgs) {
             inline_keyboard: [
               [
                 {
-                  text: '📥 Download more 📥',
-                  callback_data: `${task.link}&${nextPage}`,
+                  text: '📥 Download more Pinned stories 📥',
+                  callback_data: `pinned&${task.link}&${nextPage}`,
                 },
               ],
             ],

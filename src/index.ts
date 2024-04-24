@@ -80,15 +80,16 @@ bot.on(message('text'), async (ctx) => {
 });
 
 bot.on(callbackQuery('data'), async (ctx) => {
-  // handle pinned stories pagination
+  // handle stories pagination
   if (ctx.callbackQuery.data.includes('&')) {
-    const [username, page] = ctx.callbackQuery.data.split('&');
+    const [pageType, username, page] = ctx.callbackQuery.data.split('&');
     newTaskReceived({
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       chatId: String(ctx?.from?.id),
       link: username,
       linkType: 'username',
       currentPage: Number(page),
+      pageType: pageType as 'active' | 'pinned',
       locale: '',
       user: ctx.from,
       initTime: Date.now(),

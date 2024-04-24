@@ -18,6 +18,7 @@ export interface UserInfo {
   link: string;
   linkType: 'username' | 'link';
   currentPage?: number;
+  pageType?: 'active' | 'pinned';
   locale: string;
   user?: User;
   tempMessage?: {
@@ -185,7 +186,6 @@ const intervalHasPassed = createEvent();
 const checkTaskForRestart = createEffect(async (task: UserInfo | null) => {
   if (task) {
     const minsFromStart = Math.floor((Date.now() - task.initTime) / 60_000);
-    console.log('minsFromStart', minsFromStart);
 
     if (minsFromStart === MAX_WAIT_TIME) {
       console.log(
