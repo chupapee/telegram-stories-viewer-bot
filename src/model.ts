@@ -16,6 +16,7 @@ import { BOT_ADMIN_ID } from '@shared/config';
 export interface UserInfo {
   chatId: string;
   link: string;
+  // TODO: replace `username` with `linkEntityLike`
   linkType: 'username' | 'link';
   currentPage?: number;
   locale: string;

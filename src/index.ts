@@ -22,8 +22,20 @@ bot.catch((error) => {
   console.error(error, 'INDEX.TS');
 });
 
+// FIXME: set any due to buildtime error
+const extraOptions: any = {
+  link_preview_options: {
+    is_disabled: true,
+  },
+};
 bot.start(async (ctx) => {
-  await ctx.reply('🔗 Please send a @username (@ symbol is necessary)');
+  await ctx.reply(
+    '🔗 Please send 1 of the next options:\n\n' +
+      "username (with '@' symbol):\n@chupapee\n\n" +
+      "or phone number (with '+' symbol):\n+71234567890\n\n" +
+      'or the direct link to story:\nhttps://t.me/durov/s/1',
+    extraOptions
+  );
 });
 
 bot.on(message('text'), async (ctx) => {
@@ -31,7 +43,7 @@ bot.on(message('text'), async (ctx) => {
     const text = ctx.message.text;
 
     // username
-    if (text.startsWith('@')) {
+    if (text.startsWith('@') || text.startsWith('+')) {
       newTaskReceived({
         chatId: String(ctx.chat.id),
         link: text,
@@ -73,7 +85,9 @@ bot.on(message('text'), async (ctx) => {
       return;
     }
 
-    await ctx.reply('🚫 Please send a valid username');
+    await ctx.reply(
+      '🚫 Please send a valid link to user (username or phone number)'
+    );
   };
 
   handleMessage();

@@ -64,7 +64,7 @@ export const getAllStoriesFx = createEffect(async (task: UserInfo) => {
     return '🚫 Stories not found!';
   } catch (error) {
     console.log('ERROR occured:', error);
-    return '🚫 Wrong username!';
+    return '🚫 Wrong link to user!';
   }
 });
 
