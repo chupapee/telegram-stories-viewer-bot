@@ -147,4 +147,4 @@ Upon starting the bot, you'll receive a login code from Telegram. Enter this cod
 Once the bot and userbot are up and running, the Telegram Story Viewer is ready to use!
 
 <h2>🚀 Usage</h2>
-Just send a message to the bot with the desired Telegram username (@username). Wait for the bot to retrieve and deliver the stories back to you
+Just send a message to the bot with the desired Telegram username, phone number, or the direct link to story. Wait for the bot to retrieve and deliver the stories back to you
