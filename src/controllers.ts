@@ -64,6 +64,11 @@ export const getAllStoriesFx = createEffect(async (task: UserInfo) => {
     return '🚫 Stories not found!';
   } catch (error) {
     console.log('ERROR occured:', error);
+
+    // TODO: set sleep time after each request to avoid this error
+    if (JSON.stringify(error).includes('FloodWaitError')) {
+      return '⚠️ Too much requests accepted from users, please try again later';
+    }
     return '🚫 Wrong link to user!';
   }
 });
