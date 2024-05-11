@@ -1,6 +1,7 @@
 import { createEffect } from 'effector';
 import { bot } from 'index';
-import { tempMessageSent, UserInfo } from 'model';
+import { cleanUpTempMessagesFired, tempMessageSent, UserInfo } from 'model';
+import { Markup } from 'telegraf';
 import { Api } from 'telegram';
 import {
   chunkMediafiles,
@@ -18,14 +19,7 @@ export const getAllStoriesFx = createEffect(async (task: UserInfo) => {
     const client = await Userbot.getInstance();
     const entity = await client.getEntity(task.link);
 
-    const tempText = '⏳ Fetching stories...';
-    const { message_id } = await bot.telegram.sendMessage(
-      task.chatId!,
-      tempText
-    );
     notifyAdmin({ task, status: 'start' });
-
-    tempMessageSent({ id: message_id, text: tempText });
 
     let activeStories: Api.TypeStoryItem[] = [];
     let pinnedStories: Api.TypeStoryItem[] = [];
@@ -51,13 +45,20 @@ export const getAllStoriesFx = createEffect(async (task: UserInfo) => {
       const text =
         `⚡️ ${activeStories.length} Active stories found and\n` +
         `📌 ${pinnedStories.length} Pinned ones!`;
-
-      bot.telegram.editMessageText(task.chatId, message_id, undefined, text);
-      tempMessageSent({ id: message_id, text });
-      notifyAdmin({
-        status: 'info',
-        baseInfo: text,
-      });
+      bot.telegram
+        .sendMessage(
+          task.chatId,
+          text,
+          Markup.keyboard([['Support the bot ❤️']]).resize()
+        )
+        .then(({ message_id }) => {
+          tempMessageSent(message_id);
+          notifyAdmin({
+            status: 'info',
+            baseInfo: text,
+          });
+        })
+        .catch(() => null);
       return { activeStories, pinnedStories };
     }
 
@@ -82,14 +83,6 @@ export const getParticularStory = createEffect(async (task: UserInfo) => {
 
     const entity = await client.getEntity(username!);
 
-    const { message_id } = await bot.telegram.sendMessage(
-      task.chatId!,
-      '⏳ Fetching story...'
-    );
-    notifyAdmin({ task, status: 'start' });
-
-    tempMessageSent({ id: message_id });
-
     const storyData = await client.invoke(
       new Api.stories.GetStoriesByID({ id: [storyId], peer: entity })
     );
@@ -97,13 +90,17 @@ export const getParticularStory = createEffect(async (task: UserInfo) => {
     if (storyData.stories.length === 0) throw new Error('stories not found!');
 
     const text = '⚡️ Story founded successfully!';
-    await bot.telegram.editMessageText(
-      task.chatId!,
-      message_id,
-      undefined,
-      text
-    );
-    tempMessageSent({ id: message_id, text });
+    bot.telegram
+      .sendMessage(
+        task.chatId!,
+        text,
+        Markup.keyboard([['Support the bot ❤️']]).resize()
+      )
+      .then(({ message_id }) => {
+        tempMessageSent(message_id);
+        notifyAdmin({ task, status: 'start' });
+      })
+      .catch(() => null);
 
     return {
       activeStories: [],
@@ -164,14 +161,12 @@ async function sendActiveStories({ stories, task }: SendStoriesArgs) {
   const mapped = mapStories(stories);
 
   try {
-    if (task.tempMessage?.id) {
-      bot.telegram.editMessageText(
-        task.chatId!,
-        task.tempMessage.id,
-        undefined,
-        task.tempMessage.text + '\n⏳ Downloading Active stories...'
-      );
-    }
+    const { message_id } = await bot.telegram.sendMessage(
+      task.chatId!,
+      '⏳ Downloading Active stories...'
+    );
+    tempMessageSent(message_id);
+
     console.log(`downloading ${mapped.length} active stories`);
 
     await downloadStories(mapped, 'active');
@@ -182,16 +177,17 @@ async function sendActiveStories({ stories, task }: SendStoriesArgs) {
       (x) => x.buffer && x.buffer.byteLength <= 47 * 1024 * 1024 // max size = 50mb
     );
 
-    if (task.tempMessage?.id) {
-      bot.telegram.editMessageText(
+    bot.telegram
+      .sendMessage(
         task.chatId,
-        task.tempMessage.id,
-        undefined,
-        task.tempMessage.text +
-          `\n📥 ${uploadableStories.length} Active stories downloaded successfully!\n` +
+
+        `📥 ${uploadableStories.length} Active stories downloaded successfully!\n` +
           '⏳ Uploading stories to Telegram...'
-      );
-    }
+      )
+      .then(({ message_id }) => {
+        tempMessageSent(message_id);
+      });
+
     console.log(
       `sending ${uploadableStories.length} uploadable active stories`
     );
@@ -229,6 +225,7 @@ async function sendActiveStories({ stories, task }: SendStoriesArgs) {
     });
     console.log('error occured on sending ACTIVE stories:', error);
   }
+  cleanUpTempMessagesFired();
 }
 
 async function sendPinnedStories({ stories, task }: SendStoriesArgs) {
@@ -257,16 +254,15 @@ async function sendPinnedStories({ stories, task }: SendStoriesArgs) {
 
   try {
     console.log(`downloading ${mapped.length} pinned stories`);
-    if (task.tempMessage?.id) {
-      bot.telegram.editMessageText(
+    bot.telegram
+      .sendMessage(
         task.chatId!,
-        task.tempMessage.id,
-        undefined,
-        task.tempMessage.text +
-          '\n✅ Active stories processed!\n' +
-          '⏳ Downloading Pinned stories...'
-      );
-    }
+        '✅ Active stories processed!\n' + '⏳ Downloading Pinned stories...'
+      )
+      .then(({ message_id }) => {
+        tempMessageSent(message_id);
+      })
+      .catch(() => null);
 
     await downloadStories(mapped, 'pinned');
     const uploadableStories = mapped.filter(
@@ -278,17 +274,17 @@ async function sendPinnedStories({ stories, task }: SendStoriesArgs) {
     console.log(
       `sending ${uploadableStories.length} uploadable pinned stories`
     );
-    if (task.tempMessage?.id) {
-      bot.telegram.editMessageText(
+    bot.telegram
+      .sendMessage(
         task.chatId!,
-        task.tempMessage.id,
-        undefined,
-        task.tempMessage.text +
-          '\n✅ Active stories processed!\n' +
+        '✅ Active stories processed!\n' +
           `📥 ${uploadableStories.length} Pinned stories downloaded successfully!\n` +
           '⏳ Uploading stories to Telegram...'
-      );
-    }
+      )
+      .then(({ message_id }) => {
+        tempMessageSent(message_id);
+      })
+      .catch(() => null);
 
     if (uploadableStories.length > 0) {
       await bot.telegram.sendMediaGroup(
@@ -339,6 +335,7 @@ async function sendPinnedStories({ stories, task }: SendStoriesArgs) {
     });
     console.log('error occured on sending PINNED stories:', error);
   }
+  cleanUpTempMessagesFired();
 }
 
 async function sendParticularStory({
@@ -350,28 +347,20 @@ async function sendParticularStory({
   const mapped = mapStories([story]);
 
   try {
-    if (task.tempMessage?.id) {
-      await bot.telegram.editMessageText(
-        task.chatId,
-        task.tempMessage.id,
-        undefined,
-        task.tempMessage.text + '\n⏳ Downloading...'
-      );
-    }
+    bot.telegram
+      .sendMessage(task.chatId, '⏳ Downloading...')
+      .then(({ message_id }) => tempMessageSent(message_id))
+      .catch(() => null);
 
     await downloadStories(mapped, 'active');
 
     const story = mapped[0];
 
     if (story.buffer) {
-      if (task.tempMessage?.id) {
-        bot.telegram.editMessageText(
-          task.chatId,
-          task.tempMessage.id,
-          undefined,
-          task.tempMessage.text + '\n⏳ Uploading to Telegram...'
-        );
-      }
+      bot.telegram
+        .sendMessage(task.chatId, '⏳ Uploading to Telegram...')
+        .then(({ message_id }) => tempMessageSent(message_id))
+        .catch(() => null);
       await bot.telegram.sendMediaGroup(task.chatId, [
         {
           media: { source: story.buffer },
@@ -394,4 +383,5 @@ async function sendParticularStory({
     });
     console.log('error occured on sending PINNED stories:', error);
   }
+  cleanUpTempMessagesFired();
 }

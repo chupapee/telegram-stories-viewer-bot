@@ -21,10 +21,7 @@ export interface UserInfo {
   currentPage?: number;
   locale: string;
   user?: User;
-  tempMessage?: {
-    id: number;
-    text?: string;
-  };
+  tempMessages?: number[];
   initTime: number;
 }
 
@@ -33,14 +30,11 @@ export const $tasksQueue = createStore<UserInfo[]>([]);
 const $isTaskRunning = createStore(false);
 
 const checkTasks = createEvent();
-export const tempMessageSent = createEvent<{
-  id: number;
-  text?: string;
-}>();
+export const tempMessageSent = createEvent<number>();
 
-$currentTask.on(tempMessageSent, (prev, msgInfo) => ({
+$currentTask.on(tempMessageSent, (prev, newMsgId) => ({
   ...prev!,
-  tempMessage: msgInfo,
+  tempMessages: [...(prev?.tempMessages ?? []), newMsgId],
 }));
 
 $tasksQueue.watch((tasks) => console.log({ tasks }));
@@ -52,11 +46,25 @@ const taskStarted = createEvent();
 
 const saveUserFx = createEffect(saveUser);
 
-export const cleanupTempMessages = createEffect((task: UserInfo) => {
-  if (task.tempMessage?.id) {
-    bot.telegram.deleteMessage(task.chatId!, task.tempMessage.id);
-  }
+export const cleanUpTempMessagesFired = createEvent();
+
+const cleanupTempMessagesFx = createEffect((task: UserInfo) => {
+  task.tempMessages?.forEach((id) => {
+    bot.telegram.deleteMessage(task.chatId!, id);
+  });
 });
+
+sample({
+  clock: cleanUpTempMessagesFired,
+  source: $currentTask,
+  filter: (task): task is UserInfo => task !== null,
+  target: cleanupTempMessagesFx,
+});
+
+$currentTask.on(cleanupTempMessagesFx.done, (prev) => ({
+  ...prev!,
+  tempMessages: [],
+}));
 
 export const sendWaitMessageFx = createEffect(async ({ chatId }: UserInfo) => {
   const { chatId: currentTaskChatId } = $currentTask.getState() ?? {};
@@ -170,7 +178,7 @@ sample({
   clock: taskDone,
   source: $currentTask,
   filter: (task): task is UserInfo => task !== null,
-  target: cleanupTempMessages,
+  target: cleanupTempMessagesFx,
 });
 
 $currentTask.on(taskDone, () => null);
