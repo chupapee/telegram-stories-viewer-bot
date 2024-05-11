@@ -70,6 +70,11 @@ export const getAllStoriesFx = createEffect(async (task: UserInfo) => {
     if (JSON.stringify(error).includes('FloodWaitError')) {
       return '⚠️ Too much requests accepted from users, please try again later';
     }
+
+    if (task.link.startsWith('+')) {
+      return '⚠️ if user keeps phone number private, the bot cannot get access to stories';
+    }
+
     return '🚫 Wrong link to user!';
   }
 });
