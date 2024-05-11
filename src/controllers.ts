@@ -74,7 +74,7 @@ export const getAllStoriesFx = createEffect(async (task: UserInfo) => {
   }
 });
 
-export const getParticularStory = createEffect(async (task: UserInfo) => {
+export const getParticularStoryFx = createEffect(async (task: UserInfo) => {
   try {
     const client = await Userbot.getInstance();
     const linkPaths = task.link.split('/');

@@ -1,12 +1,12 @@
 import {
   getAllStoriesFx,
-  getParticularStory,
+  getParticularStoryFx,
   sendErrorMessageFx,
   sendStoriesFx,
 } from 'controllers';
 import { createEffect, createEvent, createStore, sample } from 'effector';
 import { bot } from 'index';
-import { and, not } from 'patronum';
+import { and, delay, not, or } from 'patronum';
 import { User } from 'telegraf/typings/core/types/typegram';
 import { Api } from 'telegram';
 
@@ -25,9 +25,11 @@ export interface UserInfo {
   initTime: number;
 }
 
+const TIMEOUT_BETWEEN_REQUESTS = 5_000;
 export const $currentTask = createStore<UserInfo | null>(null);
 export const $tasksQueue = createStore<UserInfo[]>([]);
 const $isTaskRunning = createStore(false);
+const $isTimedOut = createStore(false);
 
 const checkTasks = createEvent();
 export const tempMessageSent = createEvent<number>();
@@ -66,24 +68,39 @@ $currentTask.on(cleanupTempMessagesFx.done, (prev) => ({
   tempMessages: [],
 }));
 
-export const sendWaitMessageFx = createEffect(async ({ chatId }: UserInfo) => {
-  const { chatId: currentTaskChatId } = $currentTask.getState() ?? {};
+interface SendWaitMessageFxArgs {
+  multipleRequests: boolean;
+  isTimedOut: boolean;
+  queueLength: number;
+  newTask: UserInfo;
+}
 
-  if (chatId === currentTaskChatId) {
-    await bot.telegram.sendMessage(
-      chatId,
-      '⚠️ Only 1 link can be proceeded at once, please be patient'
-    );
-    return;
+export const sendWaitMessageFx = createEffect(
+  async ({
+    multipleRequests,
+    isTimedOut,
+    queueLength,
+    newTask,
+  }: SendWaitMessageFxArgs) => {
+    if (multipleRequests) {
+      await bot.telegram.sendMessage(
+        newTask.chatId,
+        '⚠️ Only 1 link can be proceeded at once, please be patient'
+      );
+      return;
+    }
+    if (isTimedOut) {
+      await bot.telegram.sendMessage(newTask.chatId, `⏳ Please wait a bit...`);
+      return;
+    }
+    if (queueLength) {
+      await bot.telegram.sendMessage(
+        newTask.chatId,
+        `⏳ Please wait for your turn, there're ${queueLength} users before you!`
+      );
+    }
   }
-
-  const queueLength = $tasksQueue.getState().length;
-
-  await bot.telegram.sendMessage(
-    chatId,
-    `⏳ Please wait for your queue, there're ${queueLength} users before you!`
-  );
-});
+);
 
 $tasksQueue.on(newTaskReceived, (tasks, newTask) => {
   const alreadyExist = tasks.some((x) => x.chatId === newTask.chatId);
@@ -109,7 +126,20 @@ sample({
 
 sample({
   clock: newTaskReceived,
-  filter: $isTaskRunning,
+  source: {
+    currentTask: $currentTask,
+    isTimedOut: $isTimedOut,
+    queue: $tasksQueue,
+  },
+  filter: or($isTaskRunning, $isTimedOut),
+  fn: ({ currentTask, isTimedOut, queue }, newTask) => {
+    return {
+      multipleRequests: currentTask?.chatId === newTask.chatId,
+      isTimedOut,
+      queueLength: queue.length,
+      newTask,
+    };
+  },
   target: sendWaitMessageFx,
 });
 
@@ -119,6 +149,7 @@ sample({
   clock: checkTasks,
   filter: and(
     not($isTaskRunning),
+    not($isTimedOut),
     $tasksQueue.map((tasks) => tasks.length > 0)
   ),
   target: taskInitiated,
@@ -135,7 +166,7 @@ sample({
   clock: taskStarted,
   source: $currentTask,
   filter: (task): task is UserInfo => task !== null && task.linkType === 'link',
-  target: getParticularStory,
+  target: getParticularStoryFx,
 });
 
 sample({
@@ -147,7 +178,19 @@ sample({
 });
 
 sample({
-  clock: [getAllStoriesFx.doneData, getParticularStory.doneData],
+  clock: taskInitiated,
+  fn: () => true,
+  target: $isTimedOut,
+});
+
+sample({
+  clock: delay(taskInitiated, TIMEOUT_BETWEEN_REQUESTS),
+  fn: () => false,
+  target: [$isTimedOut, checkTasks],
+});
+
+sample({
+  clock: [getAllStoriesFx.doneData, getParticularStoryFx.doneData],
   source: $currentTask,
   filter: (task, result) =>
     typeof result === 'string' && task?.chatId !== undefined,
@@ -156,7 +199,7 @@ sample({
 });
 
 sample({
-  clock: [getAllStoriesFx.doneData, getParticularStory.doneData],
+  clock: [getAllStoriesFx.doneData, getParticularStoryFx.doneData],
   source: $currentTask,
   filter: (task, result) => typeof result === 'object' && task !== null,
   fn: (task, result) => ({
@@ -184,7 +227,7 @@ sample({
 $currentTask.on(taskDone, () => null);
 
 /**
- * checking task handle time
+ * checking task processing time
  * restart bot if it takes more than 7 minutes
  * Reason: downloading some stories leads to "file lives in another DC" error
  * TODO: have to find better way to handle this issue
