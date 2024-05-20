@@ -101,11 +101,14 @@ export async function notifyAdmin({
   errorInfo?: { cause: unknown };
   baseInfo?: string;
 }) {
+  if (task?.chatId === BOT_ADMIN_ID.toString()) return;
   const userInfo = JSON.stringify(
     { ...(task?.user ?? {}), username: '@' + task?.user?.username },
     null,
     2
   );
+
+  const msgOptions = { link_preview_options: { is_disabled: true } };
 
   if (status === 'error' && errorInfo) {
     bot.telegram.sendMessage(
@@ -113,18 +116,24 @@ export async function notifyAdmin({
       '🛑 ERROR 🛑\n' +
         `🔗 Target link: ${task?.link}\n` +
         `reason: ${JSON.stringify(errorInfo.cause)}\n` +
-        `author: ${userInfo}`
+        `author: ${userInfo}`,
+      msgOptions
     );
     return;
   }
 
   if (status === 'info' && baseInfo) {
-    bot.telegram.sendMessage(BOT_ADMIN_ID, baseInfo);
+    let text = baseInfo;
+    if (task?.user) {
+      text += '\n👤 user: ' + userInfo;
+    }
+    bot.telegram.sendMessage(BOT_ADMIN_ID, text, msgOptions);
     return;
   }
 
   if (status === 'start') {
     bot.telegram.sendMessage(BOT_ADMIN_ID, `👤 Task started by: ${userInfo}`, {
+      ...msgOptions,
       parse_mode: 'HTML',
     });
   }

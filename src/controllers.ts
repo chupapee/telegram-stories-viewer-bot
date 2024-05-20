@@ -3,6 +3,7 @@ import { bot } from 'index';
 import { cleanUpTempMessagesFired, tempMessageSent, UserInfo } from 'model';
 import { Markup } from 'telegraf';
 import { Api } from 'telegram';
+import { FloodWaitError } from 'telegram/errors';
 import {
   chunkMediafiles,
   downloadStories,
@@ -64,7 +65,13 @@ export const getAllStoriesFx = createEffect(async (task: UserInfo) => {
 
     return '🚫 Stories not found!';
   } catch (error) {
-    console.log('ERROR occured:', error);
+    if (error instanceof FloodWaitError) {
+      return (
+        "⚠️ There're too much requests from the users, please wait " +
+        (error.seconds / 60).toFixed(0) +
+        ' minutes\n\n(You can use [scheduled message](https://telegram.org/blog/scheduled-reminders-themes) feature btw)'
+      );
+    }
 
     // TODO: set sleep time after each request to avoid this error
     if (JSON.stringify(error).includes('FloodWaitError')) {
@@ -153,7 +160,10 @@ export const sendErrorMessageFx = createEffect(
       status: 'error',
       errorInfo: { cause: message },
     });
-    bot.telegram.sendMessage(task.chatId, message);
+    bot.telegram.sendMessage(task.chatId, message, {
+      parse_mode: 'Markdown',
+      link_preview_options: { is_disabled: true },
+    });
   }
 );
 
