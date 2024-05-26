@@ -25,7 +25,7 @@ export interface UserInfo {
   initTime: number;
 }
 
-const TIMEOUT_BETWEEN_REQUESTS = 5_000;
+const TIMEOUT_BETWEEN_REQUESTS = 60_000;
 export const $currentTask = createStore<UserInfo | null>(null);
 export const $tasksQueue = createStore<UserInfo[]>([]);
 const $isTaskRunning = createStore(false);
@@ -90,7 +90,10 @@ export const sendWaitMessageFx = createEffect(
       return;
     }
     if (isTimedOut) {
-      await bot.telegram.sendMessage(newTask.chatId, `⏳ Please wait a bit...`);
+      await bot.telegram.sendMessage(
+        newTask.chatId,
+        `⏳ Please wait about a minute...`
+      );
       return;
     }
     if (queueLength) {
