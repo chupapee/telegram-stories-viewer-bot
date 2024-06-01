@@ -6,7 +6,7 @@ import {
   USERBOT_API_HASH,
   USERBOT_API_ID,
   USERBOT_PHONE_NUMBER,
-} from '@shared/config';
+} from './env-config';
 
 export class Userbot {
   private static client: TelegramClient;

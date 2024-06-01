@@ -1,17 +1,13 @@
-import {
-  getAllStoriesFx,
-  getParticularStoryFx,
-  sendErrorMessageFx,
-  sendStoriesFx,
-} from 'controllers';
+import { BOT_ADMIN_ID } from 'config/env-config';
+import { getAllStoriesFx, getParticularStoryFx } from 'controllers/get-stories';
+import { sendErrorMessageFx } from 'controllers/send-message';
+import { sendStoriesFx } from 'controllers/send-stories';
 import { createEffect, createEvent, createStore, sample } from 'effector';
 import { bot } from 'index';
 import { and, delay, not, or } from 'patronum';
+import { saveUser } from 'repositories/user-repository';
 import { User } from 'telegraf/typings/core/types/typegram';
 import { Api } from 'telegram';
-
-import { saveUser } from '@entities/storage-model';
-import { BOT_ADMIN_ID } from '@shared/config';
 
 export interface UserInfo {
   chatId: string;
@@ -25,7 +21,7 @@ export interface UserInfo {
   initTime: number;
 }
 
-const TIMEOUT_BETWEEN_REQUESTS = 60_000;
+const TIMEOUT_BETWEEN_REQUESTS = 60_000 * 5;
 export const $currentTask = createStore<UserInfo | null>(null);
 export const $tasksQueue = createStore<UserInfo[]>([]);
 const $isTaskRunning = createStore(false);
@@ -92,7 +88,10 @@ export const sendWaitMessageFx = createEffect(
     if (isTimedOut) {
       await bot.telegram.sendMessage(
         newTask.chatId,
-        `⏳ Please wait about a minute...`
+        `⏳ Please wait 5 minutes, the're too much requests...\n\nYou can get ***unlimited access*** to our bot without waiting any minutes between requests\nRun the ***/premium*** command to get more info`,
+        {
+          parse_mode: 'Markdown',
+        }
       );
       return;
     }
@@ -107,7 +106,8 @@ export const sendWaitMessageFx = createEffect(
 
 $tasksQueue.on(newTaskReceived, (tasks, newTask) => {
   const alreadyExist = tasks.some((x) => x.chatId === newTask.chatId);
-  if (!alreadyExist) return [...tasks, newTask];
+  const isTimedOut = $isTimedOut.getState();
+  if (!alreadyExist && !isTimedOut) return [...tasks, newTask];
   return tasks;
 });
 

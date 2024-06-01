@@ -11,11 +11,6 @@
 		"resolveJsonModule": true,
 		"strictPropertyInitialization": false,
 		"baseUrl": "src",
-		"paths": {
-			"@entities/*": ["./entities/*"],
-			"@features/*": ["./features/*"],
-			"@shared/*": ["./shared/*"],
-		}
 	},
 	"include": ["src", "./types.d.ts"]
 }

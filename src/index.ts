@@ -1,15 +1,15 @@
-import { newTaskReceived } from 'model';
-import { session, Telegraf } from 'telegraf';
-import { callbackQuery, message } from 'telegraf/filters';
-
-import { initUserbot } from '@entities/userbot';
+import { IContextBot } from 'config/context-interface';
 import {
   BOT_ADMIN_ID,
   BOT_TOKEN,
-  IContextBot,
   SUPABASE_API_KEY,
   SUPABASE_PROJECT_URL,
-} from '@shared/config';
+} from 'config/env-config';
+import { initUserbot } from 'config/userbot';
+import { newTaskReceived } from 'services/stories-service';
+import { session, Telegraf } from 'telegraf';
+import { callbackQuery, message } from 'telegraf/filters';
+
 import { createClient } from '@supabase/supabase-js';
 
 export const supabase = createClient(SUPABASE_PROJECT_URL, SUPABASE_API_KEY);
