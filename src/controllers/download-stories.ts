@@ -2,10 +2,10 @@ import { Userbot } from 'config/userbot';
 import { timeout } from 'lib';
 import { Api } from 'telegram';
 
-export type StoriesModel = typeof mapStories;
+export type StoriesModel = ReturnType<typeof mapStories>;
 
 export async function downloadStories(
-  stories: ReturnType<StoriesModel>,
+  stories: StoriesModel,
   storiesType: 'active' | 'pinned'
 ) {
   const client = await Userbot.getInstance();

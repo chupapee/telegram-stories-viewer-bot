@@ -1,13 +1,18 @@
 import { StoriesModel } from 'controllers/download-stories';
 
+const MAX_STORIES_SIZE = 45;
+
 export const timeout = (sec: number): Promise<null> =>
   new Promise((ok) => setTimeout(ok, sec));
 
-export function chunkMediafiles(files: ReturnType<StoriesModel>) {
+export function chunkMediafiles(files: StoriesModel) {
   return files.reduce(
-    (acc: Array<ReturnType<StoriesModel>>, curr) => {
+    (acc: Array<StoriesModel>, curr) => {
       const tempAccWithCurr = [...acc[acc.length - 1], curr];
-      if (tempAccWithCurr.length === 10 || sumOfSizes(tempAccWithCurr) >= 50) {
+      if (
+        tempAccWithCurr.length === 10 ||
+        sumOfSizes(tempAccWithCurr) >= MAX_STORIES_SIZE
+      ) {
         acc.push([curr]);
         return acc;
       }

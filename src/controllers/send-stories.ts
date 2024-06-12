@@ -86,7 +86,7 @@ async function sendActiveStories({ stories, task }: SendStoriesArgs) {
           album.map((x) => ({
             media: { source: x.buffer! },
             type: x.mediaType,
-            caption: 'Active stories',
+            caption: x.caption ?? 'Active stories',
           }))
         );
       }
@@ -172,14 +172,18 @@ async function sendPinnedStories({ stories, task }: SendStoriesArgs) {
       .catch(() => null);
 
     if (uploadableStories.length > 0) {
-      await bot.telegram.sendMediaGroup(
-        task.chatId,
-        uploadableStories.map((x) => ({
-          media: { source: x.buffer! },
-          type: x.mediaType,
-          caption: 'Pinned stories',
-        }))
-      );
+      const chunkedList = chunkMediafiles(uploadableStories);
+
+      for (const album of chunkedList) {
+        await bot.telegram.sendMediaGroup(
+          task.chatId,
+          album.map((x) => ({
+            media: { source: x.buffer! },
+            type: x.mediaType,
+            caption: x.caption ?? 'Pinned stories',
+          }))
+        );
+      }
     } else {
       await bot.telegram.sendMessage(
         task.chatId,
