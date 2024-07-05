@@ -21,11 +21,11 @@ export interface UserInfo {
   initTime: number;
 }
 
-const TIMEOUT_BETWEEN_REQUESTS = 60_000 * 5;
+const TIMEOUT_BETWEEN_REQUESTS = 60_000 * 3;
 export const $currentTask = createStore<UserInfo | null>(null);
 export const $tasksQueue = createStore<UserInfo[]>([]);
 const $isTaskRunning = createStore(false);
-const $isTimedOut = createStore(false);
+const $waitTime = createStore<Date | null>(null);
 
 const checkTasks = createEvent();
 export const tempMessageSent = createEvent<number>();
@@ -66,7 +66,7 @@ $currentTask.on(cleanupTempMessagesFx.done, (prev) => ({
 
 interface SendWaitMessageFxArgs {
   multipleRequests: boolean;
-  isTimedOut: boolean;
+  waitTime: Date | null;
   queueLength: number;
   newTask: UserInfo;
 }
@@ -74,7 +74,7 @@ interface SendWaitMessageFxArgs {
 export const sendWaitMessageFx = createEffect(
   async ({
     multipleRequests,
-    isTimedOut,
+    waitTime,
     queueLength,
     newTask,
   }: SendWaitMessageFxArgs) => {
@@ -85,10 +85,24 @@ export const sendWaitMessageFx = createEffect(
       );
       return;
     }
-    if (isTimedOut) {
+    if (waitTime instanceof Date) {
+      const endTime = waitTime.getTime() + TIMEOUT_BETWEEN_REQUESTS;
+      const currTime = new Date().getTime();
+
+      const diff = Math.abs(currTime - endTime);
+
+      const seconds = Math.floor(diff / 1000);
+      const minutes = Math.floor(seconds / 60);
+      const remainingSeconds = seconds % 60;
+
+      const timeToWait =
+        minutes > 0
+          ? `${minutes} minute and ${remainingSeconds} seconds`
+          : `${remainingSeconds} seconds`;
+
       await bot.telegram.sendMessage(
         newTask.chatId,
-        `⏳ Please wait 5 minutes, the're too much requests...\n\nYou can get ***unlimited access*** to our bot without waiting any minutes between requests\nRun the ***/premium*** command to get more info`,
+        `⏳ Please wait ***${timeToWait}*** and send link again\n\nYou can get ***unlimited access*** to our bot without waiting any minutes between requests\nRun the ***/premium*** command to get more info`,
         {
           parse_mode: 'Markdown',
         }
@@ -106,8 +120,8 @@ export const sendWaitMessageFx = createEffect(
 
 $tasksQueue.on(newTaskReceived, (tasks, newTask) => {
   const alreadyExist = tasks.some((x) => x.chatId === newTask.chatId);
-  const isTimedOut = $isTimedOut.getState();
-  if (!alreadyExist && !isTimedOut) return [...tasks, newTask];
+  const waitTime = $waitTime.getState();
+  if (!alreadyExist && waitTime === null) return [...tasks, newTask];
   return tasks;
 });
 
@@ -131,14 +145,17 @@ sample({
   clock: newTaskReceived,
   source: {
     currentTask: $currentTask,
-    isTimedOut: $isTimedOut,
+    waitTime: $waitTime,
     queue: $tasksQueue,
   },
-  filter: or($isTaskRunning, $isTimedOut),
-  fn: ({ currentTask, isTimedOut, queue }, newTask) => {
+  filter: or(
+    $isTaskRunning,
+    $waitTime.map((x) => x instanceof Date)
+  ),
+  fn: ({ currentTask, waitTime, queue }, newTask) => {
     return {
       multipleRequests: currentTask?.chatId === newTask.chatId,
-      isTimedOut,
+      waitTime,
       queueLength: queue.length,
       newTask,
     };
@@ -152,7 +169,7 @@ sample({
   clock: checkTasks,
   filter: and(
     not($isTaskRunning),
-    not($isTimedOut),
+    not($waitTime),
     $tasksQueue.map((tasks) => tasks.length > 0)
   ),
   target: taskInitiated,
@@ -182,14 +199,14 @@ sample({
 
 sample({
   clock: taskInitiated,
-  fn: () => true,
-  target: $isTimedOut,
+  fn: () => new Date(),
+  target: $waitTime,
 });
 
 sample({
   clock: delay(taskInitiated, TIMEOUT_BETWEEN_REQUESTS),
-  fn: () => false,
-  target: [$isTimedOut, checkTasks],
+  fn: () => null,
+  target: [$waitTime, checkTasks],
 });
 
 sample({
