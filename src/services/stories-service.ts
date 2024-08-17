@@ -1,4 +1,4 @@
-import { BOT_ADMIN_ID } from 'config/env-config';
+import { BOT_ADMIN_ID, isDevEnv } from 'config/env-config';
 import { getAllStoriesFx, getParticularStoryFx } from 'controllers/get-stories';
 import { sendErrorMessageFx } from 'controllers/send-message';
 import { sendStoriesFx } from 'controllers/send-stories';
@@ -14,14 +14,14 @@ export interface UserInfo {
   link: string;
   // TODO: replace `username` with `linkEntityLike`
   linkType: 'username' | 'link';
-  currentPage?: number;
+  nextStoriesIds?: number[];
   locale: string;
   user?: User;
   tempMessages?: number[];
   initTime: number;
 }
 
-const TIMEOUT_BETWEEN_REQUESTS = 60_000 * 3;
+const TIMEOUT_BETWEEN_REQUESTS = isDevEnv ? 0 : 300_000; // 60_000 * 5 = 5min;
 export const $currentTask = createStore<UserInfo | null>(null);
 export const $tasksQueue = createStore<UserInfo[]>([]);
 const $isTaskRunning = createStore(false);
@@ -136,7 +136,7 @@ sample({
 
 sample({
   clock: newTaskReceived,
-  filter: (task) => !task.currentPage,
+  filter: (task) => !task.nextStoriesIds,
   fn: (task) => task.user!,
   target: saveUserFx,
 });
@@ -227,6 +227,7 @@ sample({
     ...(result as {
       activeStories: Api.TypeStoryItem[];
       pinnedStories: Api.TypeStoryItem[];
+      paginatedStories?: Api.TypeStoryItem[];
     }),
   }),
   target: sendStoriesFx,

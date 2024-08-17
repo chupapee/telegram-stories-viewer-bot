@@ -39,6 +39,7 @@ export async function downloadStories(
 
 export function mapStories(stories: Api.TypeStoryItem[]) {
   const mappedStories: {
+    id: number;
     caption?: string;
     media: Api.StoryItem['media'];
     mediaType: 'photo' | 'video';
@@ -48,17 +49,18 @@ export function mapStories(stories: Api.TypeStoryItem[]) {
   }[] = [];
 
   stories.forEach((x) => {
-    if ('media' in x) {
-      const data: (typeof mappedStories)[number] = {
-        media: x.media,
-        // unix timestamp to ms
-        date: new Date(x.date * 1000),
-        mediaType: 'photo' in x.media ? 'photo' : 'video',
-      };
-      if (x.caption) data.caption = x.caption;
+    const story: (typeof mappedStories)[number] =
+      {} as (typeof mappedStories)[number];
 
-      mappedStories.push(data);
+    story.id = x.id;
+    if ('media' in x) {
+      story.media = x.media;
+      story.mediaType = 'photo' in x.media ? 'photo' : 'video';
     }
+    if ('date' in x) story.date = new Date(x.date * 1000); // unix timestamp to ms
+    if ('caption' in x) story.caption = x.caption;
+
+    mappedStories.push(story);
   });
 
   return mappedStories;

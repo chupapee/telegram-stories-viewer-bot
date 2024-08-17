@@ -96,13 +96,14 @@ bot.on(message('text'), async (ctx) => {
 bot.on(callbackQuery('data'), async (ctx) => {
   // handle pinned stories pagination
   if (ctx.callbackQuery.data.includes('&')) {
-    const [username, page] = ctx.callbackQuery.data.split('&');
+    const [username, nextStoriesIds] = ctx.callbackQuery.data.split('&');
+
     newTaskReceived({
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       chatId: String(ctx?.from?.id),
       link: username,
       linkType: 'username',
-      currentPage: Number(page),
+      nextStoriesIds: nextStoriesIds ? JSON.parse(nextStoriesIds) : undefined,
       locale: '',
       user: ctx.from,
       initTime: Date.now(),

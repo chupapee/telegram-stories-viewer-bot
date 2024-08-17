@@ -1,8 +1,8 @@
 import { Userbot } from 'config/userbot';
 import { createEffect } from 'effector';
 import { bot } from 'index';
+import { timeout } from 'lib';
 import { tempMessageSent, UserInfo } from 'services/stories-service';
-import { Markup } from 'telegraf';
 import { Api } from 'telegram';
 import { FloodWaitError } from 'telegram/errors';
 
@@ -13,18 +13,47 @@ export const getAllStoriesFx = createEffect(async (task: UserInfo) => {
     const client = await Userbot.getInstance();
     const entity = await client.getEntity(task.link);
 
-    notifyAdmin({ task, status: 'start' });
+    bot.telegram
+      .sendMessage(task.chatId, '⏳ Fetching stories...')
+      .then(({ message_id }) => {
+        tempMessageSent(message_id);
+        notifyAdmin({ task, status: 'start' });
+      })
+      .catch(() => null);
+
+    if (task.nextStoriesIds) {
+      const paginatedStories = await client.invoke(
+        new Api.stories.GetStoriesByID({
+          peer: entity,
+          id: task.nextStoriesIds,
+        })
+      );
+
+      if (paginatedStories.stories.length > 0) {
+        return {
+          activeStories: [],
+          pinnedStories: [],
+          paginatedStories: paginatedStories.stories,
+        };
+      }
+
+      return '🚫 Stories not found!';
+    }
 
     let activeStories: Api.TypeStoryItem[] = [];
     let pinnedStories: Api.TypeStoryItem[] = [];
+
     console.log('getting active stories');
     const active = await client.invoke(
       new Api.stories.GetPeerStories({ peer: entity })
     );
+    await timeout(1000);
+
     console.log('getting pinned stories');
     const pinned = await client.invoke(
       new Api.stories.GetPinnedStories({ peer: entity })
     );
+    await timeout(1000);
 
     if (active.stories.stories.length > 0) {
       activeStories = active.stories.stories;
@@ -35,16 +64,37 @@ export const getAllStoriesFx = createEffect(async (task: UserInfo) => {
       );
     }
 
+    // if the stories fetching for the first time
+    if (!task.nextStoriesIds) {
+      let last: number | null = pinnedStories.at(-1)?.id ?? null;
+
+      while (last) {
+        const oldestStories = await client
+          .invoke(
+            new Api.stories.GetPinnedStories({
+              peer: task.link,
+              offsetId: last,
+            })
+          )
+          .catch(() => null);
+        await timeout(1000);
+
+        if (oldestStories && oldestStories.stories.length > 0) {
+          pinnedStories.push(...oldestStories.stories);
+        }
+
+        if (oldestStories) {
+          last = oldestStories.stories.at(-1)?.id ?? null;
+        } else last = null;
+      }
+    }
+
     if (activeStories.length > 0 || pinnedStories.length > 0) {
       const text =
         `⚡️ ${activeStories.length} Active stories found and\n` +
         `📌 ${pinnedStories.length} Pinned ones!`;
       bot.telegram
-        .sendMessage(
-          task.chatId,
-          text,
-          Markup.keyboard([['Support the bot ❤️']]).resize()
-        )
+        .sendMessage(task.chatId, text)
         .then(({ message_id }) => {
           tempMessageSent(message_id);
           notifyAdmin({
@@ -96,11 +146,7 @@ export const getParticularStoryFx = createEffect(async (task: UserInfo) => {
 
     const text = '⚡️ Story founded successfully!';
     bot.telegram
-      .sendMessage(
-        task.chatId!,
-        text,
-        Markup.keyboard([['Support the bot ❤️']]).resize()
-      )
+      .sendMessage(task.chatId!, text)
       .then(({ message_id }) => {
         tempMessageSent(message_id);
         notifyAdmin({ task, status: 'start' });
