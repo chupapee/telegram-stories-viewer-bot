@@ -102,7 +102,7 @@ export const sendWaitMessageFx = createEffect(
 
       await bot.telegram.sendMessage(
         newTask.chatId,
-        `⏳ Please wait ***${timeToWait}*** and send link again\n\nYou can get ***unlimited access*** to our bot without waiting any minutes between requests\nRun the ***/premium*** command to get more info`,
+        `⏳ Please wait ***${timeToWait}*** and send link again\n\nYou can get ***unlimited access*** to our bot without waiting any minutes between requests\nRun the ***/premium*** command to get more info\n\n***Note:*** The timer resets each time ***any user*** sends a link to the bot ***(not just you)***. If someone uses the bot before your wait time expires, you'll need to wait for the timer to reset again.`,
         {
           parse_mode: 'Markdown',
         }
