@@ -2,6 +2,31 @@
 
 <p>The bot allows to view Telegram stories <code>anonymously</code> by leveraging a bot and userbot</p>
 
+<h2>📊 Bot usage statistics (as of January 28, 2025)</h2>
+
+<table>
+    <thead>
+        <tr>
+            <th>Metric</th>
+            <th>Value</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><b>🟢 Active users count</b></td>
+            <td><details><summary><b>12,335</b></summary><img src="https://github.com/user-attachments/assets/d72b2af9-b3b7-47b6-883f-49402aa7d167" /></details></td>
+        </tr>
+        <tr>
+            <td><b>👤 Total users count</b></td>
+            <td><details><summary><b>33,425</b></summary><img src="https://github.com/user-attachments/assets/bccd8b8d-b190-47e0-af33-3283f3cd9c56" /></details></td>
+        </tr>
+        <tr>
+            <td><b>🔄 Requests per day</b></td>
+            <td><details><summary><b>~4,530</b></summary><img src="https://github.com/user-attachments/assets/b135791f-3b11-4f36-a268-2214090cfd8c" /></details></td>
+        </tr>
+    </tbody>
+</table>
+
 <h2>📸 Screenshots</h2>
 
 <table>
