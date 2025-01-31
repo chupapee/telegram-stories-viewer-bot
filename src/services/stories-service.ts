@@ -4,11 +4,13 @@ import { sendErrorMessageFx } from 'controllers/send-message';
 import { sendStoriesFx } from 'controllers/send-stories';
 import { createEffect, createEvent, createStore, sample } from 'effector';
 import { bot } from 'index';
-import { and, delay, not, or } from 'patronum';
+import { getRandomArrayItem } from 'lib';
+import { and, not, or } from 'patronum';
 import { saveUser } from 'repositories/user-repository';
 import { User } from 'telegraf/typings/core/types/typegram';
 import { Api } from 'telegram';
 
+// stores
 export interface UserInfo {
   chatId: string;
   link: string;
@@ -20,61 +22,68 @@ export interface UserInfo {
   tempMessages?: number[];
   initTime: number;
 }
-
-const TIMEOUT_BETWEEN_REQUESTS = isDevEnv ? 0 : 300_000; // 60_000 * 5 = 5min;
 export const $currentTask = createStore<UserInfo | null>(null);
 export const $tasksQueue = createStore<UserInfo[]>([]);
 const $isTaskRunning = createStore(false);
-const $waitTime = createStore<Date | null>(null);
+const $taskStartTime = createStore<Date | null>(null);
+const clearTimeout = createEvent<number>();
+const $taskTimeout = createStore(isDevEnv ? 20_000 : 240_000);
 
-const checkTasks = createEvent();
-export const tempMessageSent = createEvent<number>();
-
-$currentTask.on(tempMessageSent, (prev, newMsgId) => ({
-  ...prev!,
-  tempMessages: [...(prev?.tempMessages ?? []), newMsgId],
-}));
-
-$tasksQueue.watch((tasks) => console.log({ tasks }));
-
-export const taskDone = createEvent();
+// events
 export const newTaskReceived = createEvent<UserInfo>();
-
+const taskInitiated = createEvent();
 const taskStarted = createEvent();
-
-const saveUserFx = createEffect(saveUser);
-
+export const tempMessageSent = createEvent<number>();
+export const taskDone = createEvent();
+const checkTasks = createEvent();
 export const cleanUpTempMessagesFired = createEvent();
 
-const cleanupTempMessagesFx = createEffect((task: UserInfo) => {
-  task.tempMessages?.forEach((id) => {
-    bot.telegram.deleteMessage(task.chatId!, id);
-  });
-});
+// effects
+const timeoutList = isDevEnv
+  ? [10_000, 15_000, 20_000]
+  : [240_000, 300_000, 360_000]; // 4,5,6 mins
+export const clearTimeoutWithDelayFx = createEffect(
+  (currentTimeout: number) => {
+    const nextTimeout = getRandomArrayItem(timeoutList, currentTimeout);
 
-sample({
-  clock: cleanUpTempMessagesFired,
-  source: $currentTask,
-  filter: (task): task is UserInfo => task !== null,
-  target: cleanupTempMessagesFx,
-});
+    setTimeout(() => {
+      clearTimeout(nextTimeout);
+    }, currentTimeout);
+  }
+);
+const MAX_WAIT_TIME = 7;
+export const checkTaskForRestart = createEffect(
+  async (task: UserInfo | null) => {
+    if (task) {
+      const minsFromStart = Math.floor((Date.now() - task.initTime) / 60_000);
+      console.log('minsFromStart', minsFromStart);
 
-$currentTask.on(cleanupTempMessagesFx.done, (prev) => ({
-  ...prev!,
-  tempMessages: [],
-}));
-
+      if (minsFromStart === MAX_WAIT_TIME) {
+        console.log(
+          "Bot stopped manually, it's took too long to download stories"
+        );
+        await bot.telegram.sendMessage(
+          BOT_ADMIN_ID,
+          "❌ Bot stopped manually, it's took too long to download stories\n\n" +
+            JSON.stringify(task, null, 2)
+        );
+        process.exit();
+      }
+    }
+  }
+);
 interface SendWaitMessageFxArgs {
   multipleRequests: boolean;
-  waitTime: Date | null;
+  taskStartTime: Date | null;
+  taskTimeout: number;
   queueLength: number;
   newTask: UserInfo;
 }
-
 export const sendWaitMessageFx = createEffect(
   async ({
     multipleRequests,
-    waitTime,
+    taskStartTime,
+    taskTimeout,
     queueLength,
     newTask,
   }: SendWaitMessageFxArgs) => {
@@ -85,20 +94,26 @@ export const sendWaitMessageFx = createEffect(
       );
       return;
     }
-    if (waitTime instanceof Date) {
-      const endTime = waitTime.getTime() + TIMEOUT_BETWEEN_REQUESTS;
-      const currTime = new Date().getTime();
+    if (queueLength) {
+      await bot.telegram.sendMessage(
+        newTask.chatId,
+        `⏳ Please wait for your turn, there're ${queueLength} users before you!`
+      );
+      return;
+    }
+    if (taskStartTime instanceof Date) {
+      const currTimeMs = Date.now(); // 10_000
+      const endTimeMs = taskStartTime.getTime() + taskTimeout; // 15_000
+      const remainingMs = endTimeMs - currTimeMs; // 15 - 10 = 5000
+      console.log({ remainingMs });
 
-      const diff = Math.abs(currTime - endTime);
-
-      const seconds = Math.floor(diff / 1000);
-      const minutes = Math.floor(seconds / 60);
-      const remainingSeconds = seconds % 60;
+      const minutes = Math.floor(remainingMs / 60000);
+      const seconds = Math.floor((remainingMs % 60000) / 1000);
 
       const timeToWait =
         minutes > 0
-          ? `${minutes} minute and ${remainingSeconds} seconds`
-          : `${remainingSeconds} seconds`;
+          ? `${minutes} minute and ${seconds} seconds`
+          : `${seconds} seconds`;
 
       await bot.telegram.sendMessage(
         newTask.chatId,
@@ -107,32 +122,27 @@ export const sendWaitMessageFx = createEffect(
           parse_mode: 'Markdown',
         }
       );
-      return;
-    }
-    if (queueLength) {
-      await bot.telegram.sendMessage(
-        newTask.chatId,
-        `⏳ Please wait for your turn, there're ${queueLength} users before you!`
-      );
     }
   }
 );
+export const cleanupTempMessagesFx = createEffect((task: UserInfo) => {
+  task.tempMessages?.forEach((id) => {
+    bot.telegram.deleteMessage(task.chatId!, id);
+  });
+});
+const saveUserFx = createEffect(saveUser);
 
+// Flow
 $tasksQueue.on(newTaskReceived, (tasks, newTask) => {
   const alreadyExist = tasks.some((x) => x.chatId === newTask.chatId);
-  const waitTime = $waitTime.getState();
-  if (!alreadyExist && waitTime === null) return [...tasks, newTask];
+  const taskStartTime = $taskStartTime.getState();
+  if (!alreadyExist && taskStartTime === null) return [...tasks, newTask];
   return tasks;
 });
 
 $isTaskRunning.on(taskStarted, () => true);
 $isTaskRunning.on(taskDone, () => false);
 $tasksQueue.on(taskDone, (tasks) => tasks.slice(1));
-
-sample({
-  clock: [newTaskReceived, taskDone],
-  target: checkTasks,
-});
 
 sample({
   clock: newTaskReceived,
@@ -145,17 +155,19 @@ sample({
   clock: newTaskReceived,
   source: {
     currentTask: $currentTask,
-    waitTime: $waitTime,
+    taskStartTime: $taskStartTime,
+    taskTimeout: $taskTimeout,
     queue: $tasksQueue,
   },
   filter: or(
     $isTaskRunning,
-    $waitTime.map((x) => x instanceof Date)
+    $taskStartTime.map((x) => x instanceof Date)
   ),
-  fn: ({ currentTask, waitTime, queue }, newTask) => {
+  fn: ({ currentTask, taskStartTime, taskTimeout, queue }, newTask) => {
     return {
       multipleRequests: currentTask?.chatId === newTask.chatId,
-      waitTime,
+      taskStartTime,
+      taskTimeout,
       queueLength: queue.length,
       newTask,
     };
@@ -163,13 +175,11 @@ sample({
   target: sendWaitMessageFx,
 });
 
-const taskInitiated = createEvent();
-
 sample({
   clock: checkTasks,
   filter: and(
     not($isTaskRunning),
-    not($waitTime),
+    not($taskStartTime),
     $tasksQueue.map((tasks) => tasks.length > 0)
   ),
   target: taskInitiated,
@@ -180,6 +190,26 @@ sample({
   source: $tasksQueue,
   fn: (tasks) => tasks[0],
   target: [$currentTask, taskStarted],
+});
+
+sample({
+  clock: taskInitiated,
+  fn: () => new Date(),
+  target: $taskStartTime,
+});
+
+sample({
+  clock: taskInitiated,
+  source: $taskTimeout,
+  target: clearTimeoutWithDelayFx,
+});
+
+$taskTimeout.on(clearTimeout, (prev, newTimeout) => newTimeout);
+
+sample({
+  clock: clearTimeout,
+  fn: () => null,
+  target: [$taskStartTime, checkTasks],
 });
 
 sample({
@@ -195,18 +225,6 @@ sample({
   filter: (task): task is UserInfo =>
     task !== null && task.linkType === 'username',
   target: getAllStoriesFx,
-});
-
-sample({
-  clock: taskInitiated,
-  fn: () => new Date(),
-  target: $waitTime,
-});
-
-sample({
-  clock: delay(taskInitiated, TIMEOUT_BETWEEN_REQUESTS),
-  fn: () => null,
-  target: [$waitTime, checkTasks],
 });
 
 sample({
@@ -245,6 +263,30 @@ sample({
   target: cleanupTempMessagesFx,
 });
 
+sample({
+  clock: [newTaskReceived, taskDone],
+  target: checkTasks,
+});
+
+$tasksQueue.watch((tasks) => console.log({ tasks }));
+
+$currentTask.on(tempMessageSent, (prev, newMsgId) => ({
+  ...prev!,
+  tempMessages: [...(prev?.tempMessages ?? []), newMsgId],
+}));
+
+$currentTask.on(cleanupTempMessagesFx.done, (prev) => ({
+  ...prev!,
+  tempMessages: [],
+}));
+
+sample({
+  clock: cleanUpTempMessagesFired,
+  source: $currentTask,
+  filter: (task): task is UserInfo => task !== null,
+  target: cleanupTempMessagesFx,
+});
+
 $currentTask.on(taskDone, () => null);
 
 /**
@@ -253,26 +295,8 @@ $currentTask.on(taskDone, () => null);
  * Reason: downloading some stories leads to "file lives in another DC" error
  * TODO: have to find better way to handle this issue
  */
-const MAX_WAIT_TIME = 7;
 const intervalHasPassed = createEvent();
-const checkTaskForRestart = createEffect(async (task: UserInfo | null) => {
-  if (task) {
-    const minsFromStart = Math.floor((Date.now() - task.initTime) / 60_000);
-    console.log('minsFromStart', minsFromStart);
 
-    if (minsFromStart === MAX_WAIT_TIME) {
-      console.log(
-        "Bot stopped manually, it's took too long to download stories"
-      );
-      await bot.telegram.sendMessage(
-        BOT_ADMIN_ID,
-        "❌ Bot stopped manually, it's took too long to download stories\n\n" +
-          JSON.stringify(task, null, 2)
-      );
-      process.exit();
-    }
-  }
-});
 sample({
   clock: intervalHasPassed,
   source: $currentTask,

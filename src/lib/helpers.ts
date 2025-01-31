@@ -31,3 +31,9 @@ function sumOfSizes(list: { bufferSize?: number }[]) {
     return acc;
   }, 0);
 }
+
+export function getRandomArrayItem<T>(arr: T[], prevValue?: T): T {
+  const filteredArr = arr.filter((value) => value !== prevValue);
+  const randomIndex = Math.floor(Math.random() * filteredArr.length);
+  return filteredArr[randomIndex];
+}
